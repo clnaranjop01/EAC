@@ -1,0 +1,3175 @@
+---
+title: "Bitacora"
+author: "Cristhyan Leonardo Naranjo Puertas"
+date: "Nov 2021"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+
+<script>
+   $(document).ready(function() {
+     $head = $('#header');
+     $head.prepend('<img src=\"uoc.jpg\" style=\"float: center;width: 550px;\"/>')
+   });
+</script>
+
+
+
+```{r setup, include=FALSE}
+#knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+# Introducción
+
+#<div style="text-align: justify">
+
+Dentro de las actividades encaminadas en el desarrollo de la economía de un país se encuentra la constante búsqueda de nuevas fuentes de generación de empleos y de riqueza que contribuyan al avance económico de la nación, también en esa misma dirección se encuentran inversionistas privados en búsqueda de empresas que en un corto tiempo tengan un alto crecimiento de tal forma que además de garantizar el éxito de sus inversión, puedan obtener ganancias de forma acelerada para realizar con ellas nuevas inversiones. Estas entre otras razones han impulsado el estudio de las actualmente denominadas Empresas de Alto Crecimiento (EAC) (y de su subconjunto de empresas gacela) con el fin de poder identificar tempranamente que compañías tienen el potencial de convertirse en una de estas empresas y así a partir de ayudas del gobierno o inversiones privadas las impulsen a lograr esa meta. 
+Ahora bien cualquier persona que halla iniciado un proyecto sabe que por más planificación y por mas que se trate de controlar todas las variables que puedan afectar el desarrollo del proyecto como se tenía presupuestado, siempre existen situaciones con comportamiento aleatorio que pueden comprometer los planes que se tenían, mas aun, dependiendo del nivel de perturbación y en que parte del desarrollo del proyecto se origine, bajo las condiciones de un efecto mariposa (sistemas caóticos) no es necesario una gran perturbación para que cambie por completo el desarrollo del proyecto, por ejemplo, el cambio de una legislación, cosa que no esta bajo el control de los emprendedores, podría hacer que una empresa al no poder adaptarse a las nuevas políticas se vaya a la quiebra, del mismo modo que podría generarle ventajas que la impulsen en un alto crecimiento. Teniendo esto en cuenta es claro ver que el desarrollo de la vida de una empresa esta influenciado además de, por las variables que son controlables, también son afectadas por situaciones fuera de su control que hace que no sea fácil poder generar modelos que logren predecir el nivel de crecimiento de una organización a través del tiempo. 
+En la actualidad , dado el aumento de nuevas fuentes de información, por ejemplo el uso de registros administrativos con cada vez más calidad y oportunidad en su información, y el auge del uso del aprendizaje automatizado, ha permitido que aprovechando la capacidad que tienen estos modelos de encontrar relaciones entre las variables que identifican el estado de una empresa, las cuales  bajo el marco de estudios de econometría clásicos no eran relevantes o no eran fácilmente identificables, se logre caracterizar estados que propician que una empresa llegue a tener un alto crecimiento.
+Teniendo en cuenta que aun se encuentra en desarrollo una definición general de lo que es unas empresas de alto crecimiento y el modo en que se realizan los cálculos de este indicador, ya que las economías entre países son muy variadas y por el momento se ha visto que, aun sacrificando la capacidad de comparar los resultados, es mejor tener parámetros de clasificación adaptados según la economía de cada país. Con este trabajo se buscó además de contribuir con el poco estudio que existen de EAC dentro de la economía local, generar un modelo de clasificación que en el marco de la economía colombiana fuera capaz de predecir a partir de la información de balances financieros del año 2017 si una empresa lograría en un periodo de 3 años en el futuro convertirse en empresa de alto crecimiento. Con este modelo se espera que en un futuro se logre utilizando información reciente identificar pequeñas y medianas empresas que se encuentren en un estado temprano en el proceso de convertirse en EAC y con esto buscar un patrocinio ya sea privado o público que aliente ese crecimiento y de esta forma garantizar en un futuro cercano la generación de nuevos empleos y un aumento en la productividad que ayude en la evolución económica de la nación.
+
+#<div/>
+
+# Importación de las librerias
+
+
+```{r message= FALSE, warning=FALSE}
+
+# detach("package:RSBID", unload=TRUE)
+# detach("package:klaR", unload=TRUE)
+# detach("package:MASS", unload=TRUE)
+# h2o.shutdown()
+
+library(kableExtra)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(highcharter)
+library(leafem)
+library(leaflet.extras)
+library(sf)
+library(car)
+
+library(skimr)
+library(ISLR)
+
+library(ggplot2)
+library(ggpubr)
+
+library(tree)
+library(MLmetrics)
+
+library(mltools)
+library(data.table)
+library(pROC)
+
+library(tidymodels)
+library(ranger)
+library(doParallel)
+
+library(e1071)
+
+library(h2o)
+library(ROCR)
+library(caTools)
+
+`%notin%` <- Negate(`%in%`)
+```
+
+# Carga de las bases de datos iniciales
+
+Los siguientes archivos contienen la información necesaria para el entrenamiento de los modelos, las bases se usaran según se vayan considerando necesarias
+
+``` {r message= FALSE, warning=FALSE}
+# base empresas
+daem<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/Datos-Empresa.xlsx") 
+# contratos con el estado
+coes<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/ContratosEstado.xlsx")
+# balances 2017
+bal17<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/Bal2017.xlsx")
+# balances 2018
+bal18<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/Bal2018.xlsx")
+# balances 2019
+bal19<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/Bal2019.xlsx")
+# balances 2020
+bal20<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/Bal2020.xlsx")    
+# modificacion de estatutos
+moes<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/ModificacionEstatutos.xlsx") 
+# incidentes judiciales
+raju<-read_excel("D:/Maestria/Tesis/Bases/Datasets TFM/RamaJudicial.xlsx")     
+```
+
+Ninguna de las bases esta corrupta o presenta alguna anormalidad (por ejemplo columnas corridas o formatos no reconocibles) por lo que fue posible cargarlas sin problemas
+
+
+## Exploracion inicial
+
+### identificadores
+
+La base bautizada como "daem" actuara como la tabla maestra al contener la información básica de las empresas, como durante el ejercicio se le irán integrando los datos de las demás bases se empezara realizando una revisión del estado de sus identificadores.
+
+``` {r message= FALSE, warning=FALSE}
+which(duplicated(daem$ID)) 
+which(duplicated(daem))
+``` 
+Se obtuvo que existen 13 registros con identificadores iguales, de los cuales 11 tienen la misma información en todos los campos. En los 2 registros con campos diferentes se pudo ver que
+
+``` {r message= FALSE, warning=FALSE}
+which(daem$ID==daem$ID[3397])
+cbind(daem[which(daem$ID==daem$ID[3397]),])
+``` 
+Para el caso de los registros 3396 y 3397, son idénticos salvo la opinión del auditor, donde para el 3396 es "03. LIMPIO" y "04. NEGATIVO" para el registro 3397, al revisar las frecuencias de esta variable tenemos que
+``` {r message= FALSE, warning=FALSE}
+table(daem$OPINIONAUDITOR)
+``` 
+La mayoría de valores son de "03. LIMPIO", por lo que se decide mantener el registro 3396. Para el caso del registro 7448 se vio que solo uno de los registro tenia la información del auditor por lo que este fue el que se conservo.
+``` {r message= FALSE, warning=FALSE}
+which(daem$ID==daem$ID[7448])
+cbind(daem[which(daem$ID==daem$ID[7448]),])
+``` 
+Se retiraron los registros descartados y los restantes 11 registros duplicados.
+
+``` {r message= FALSE, warning=FALSE}
+daem<-daem[-3397,]
+daem<-daem[-7448,]
+daem<-daem[-which(duplicated(daem$ID)),]
+
+# confirmamos que efectivamente se eliminaron los duplicados
+length(which(duplicated(daem)))
+```
+Para garantizar que la empresa se encuentre activa durante el periodo de estudio se mantiene solo se mantiene los registros con valor "Activa" en esta variable
+``` {r message= FALSE, warning=FALSE}
+table(daem$ESTADO)
+daem<-daem[daem$ESTADO=="ACTIVA",]
+```
+
+## Variables importantes
+
+para la revisión de las demás variables, primero se comprobó su nivel de completitud.
+
+``` {r message= FALSE, warning=FALSE}
+colSums(is.na(daem))
+```
+Se tiene que hay completitud en el identificador , la variable CIIU y la de departamento que a esta altura del proyecto se han identificado como variables importante, mientras que las variables empleados y constitución que serán usadas para determinar que empresas cumplen con las condiciones de la definición de EAC tienen 286 y 16 valores faltantes respectivamente, al ser una cantidad de registros relativamente pequeña se decidió retirarlos.
+
+``` {r message= FALSE, warning=FALSE}
+daem<-daem[!is.na(daem$EMPLEADOS),]
+daem<-daem[!is.na(daem$CONSTITUCION),]
+colSums(is.na(daem))
+```
+
+Por la definición de EAC se tiene que no se puede realizar el ejercicio con empresas de menos de 5 años, esto es nacidas entre t y t+4 del periodo de estudio, por esta razón se retiran las empresas que esten dentro de ese intervalo (empresas muy Jóvenes)
+
+``` {r message= FALSE, warning=FALSE}
+length(which(gsub("","",daem$CONSTITUCION)>2016))
+daem<-daem[-which(gsub("","",daem$CONSTITUCION)>2016),]
+nrow(daem)
+```
+
+Al final se paso de 12279 registros iniciales a 11837 correspondiendo a una perdida del 3.4% de la información original.
+
+Continuando con las variables importantes tenemos:
+
+### Empleados
+
+los principales estadísticos de esta variable son 
+
+``` {r message= FALSE, warning=FALSE}
+summary(daem$EMPLEADOS)
+```
+Se puede ver que el máximo esta muy alejado de la media y mediana
+``` {r message= FALSE, warning=FALSE}
+par(mar=c(1,1,1,1))
+b<-boxplot(daem$EMPLEADOS)
+length(b$out)
+```
+Se encontró que 1386 (un 8.55% del total) empresas son considerados outliers, pero dentro de la diversidad de las empresas presentes en la base, se encuentran organizaciones grandes de varios años de actividad junto con empresas jóvenes que no tienen una gran cantidad de empleados, po lo que es de esperarse la presencia de estos valores extremos.
+
+
+``` {r message= FALSE, warning=FALSE}
+box1 <- data_to_boxplot(daem,EMPLEADOS)
+highchart()%>%
+  hc_xAxis(type ="category")%>%
+  hc_add_series_list(box1)
+```
+
+Al realizar la gráfica de caja sin representar los valores extremos se ve como el grueso de la variable esta por debajo de 124 empleados y que existen empresas con una cantidad muy alta de empleados comparados con el resto de las empresas dentro de esta base.
+Según la literatura, esta variable es importante dentro del estudio porque se ha visto que empresas con muchos empleados están bien establecidas dentro del mercado y tienen un cubrimiento grande del país, pero estas también pueden tener una tasa de crecimiento menor comparada con una empresa joven en donde un aumento pequeño en la cantidad de empleados es significativo.
+
+Para utilizar esta variable en el entrenamiento de los modelos se discretizo dentro de intervalos
+
+``` {r message= FALSE, warning=FALSE}
+empl<-quantile(daem$EMPLEADOS, probs = seq(0, 1, .1))
+
+for(i in 1:nrow(daem)){
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[1]) & daem$EMPLEADOS[i]<as.numeric(empl[2]),daem$emp[i]<-1,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[2]) & daem$EMPLEADOS[i]<as.numeric(empl[3]),daem$emp[i]<-2,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[3]) & daem$EMPLEADOS[i]<as.numeric(empl[4]),daem$emp[i]<-3,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[4]) & daem$EMPLEADOS[i]<as.numeric(empl[5]),daem$emp[i]<-4,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[5]) & daem$EMPLEADOS[i]<as.numeric(empl[6]),daem$emp[i]<-5,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[6]) & daem$EMPLEADOS[i]<as.numeric(empl[7]),daem$emp[i]<-6,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[7]) & daem$EMPLEADOS[i]<as.numeric(empl[8]),daem$emp[i]<-7,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[8]) & daem$EMPLEADOS[i]<as.numeric(empl[9]),daem$emp[i]<-8,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[9]) & daem$EMPLEADOS[i]<as.numeric(empl[10]),daem$emp[i]<-9,
+  ifelse(daem$EMPLEADOS[i]>=as.numeric(empl[10]) & daem$EMPLEADOS[i]<=as.numeric(empl[11]),daem$emp[i]<-10,0
+         ))))))))))
+}
+
+daem$emp<-as.factor(daem$emp)
+table(daem$emp)
+``` 
+
+###  Código Industrial Internacional Uniforme - CIIU
+
+Por la naturaleza del negocio, la OCDE recomienda la exclusión de empresas pertenecientes a las secciones A,O,T y U, pero como Colombia tiene una gran industria importante de agricultura, no se debe de retirar la sección A.
+Al explorar las secciones CIIU tenemos
+
+``` {r message= FALSE, warning=FALSE}
+daem$CIIU<-toupper(daem$CIIU)
+daem$Nivel<-gsub("[0-9].*","",daem$CIIU)
+daem$Nivel<-as.factor(daem$Nivel)
+table(daem$Nivel)
+``` 
+se excluyen las secciones:
+ K   Actividades financieras y de seguros
+ U   ACTIVIDADES DE ORGANIZACIONES Y ENTIDADES EXTRATERRITORIALES
+ O   ADMINISTRACIÓN PÚBLICA Y DEFENSA; PLANES DE SEGURIDAD SOCIAL DE AFILIACIÓN OBLIGATORIA
+ 
+``` {r message= FALSE, warning=FALSE}
+daem<-daem[daem$Nivel!="K",]
+daem<-daem[daem$Nivel!="O",]
+daem<-daem[daem$Nivel!="U",]
+``` 
+
+Se pensó en eliminar las holding empresariales (correspondientes al CIIU 6491:Leasing financiero (arrendamiento financiero)) pero no se encontró ninguna.
+
+``` {r message= FALSE, warning=FALSE}
+length(which(gsub("[^0-9]","",daem$CIIU)==6491))
+```
+Tambien se excluyen las empresas sin animo de lucro, que mayoritariamente se encuentran en el CIIU 9499:Actividades de otras asociaciones n.c.p. , al revisar estos casos
+``` {r message= FALSE, warning=FALSE}
+daem[which(gsub("[^0-9]","",daem$CIIU)==9499),]
+```
+
+Por su tipologia y objeto social solamente el registro 7550 se debe de excluir
+
+``` {r message= FALSE, warning=FALSE}
+daem<-daem[-7550,]
+``` 
+
+Al explorar la variable CIIU de nuevo se ve que
+
+``` {r message= FALSE, warning=FALSE}
+niv<-daem%>%group_by(Nivel)%>%count(Nivel)
+niv%>%hchart("column", hcaes(x = Nivel, y = n))
+``` 
+``` {r message= FALSE, warning=FALSE}
+nb<-data.frame(levels(daem$Nivel))
+names(nb)<-"Nivel"
+nb$porcentaje<-paste(round(table(daem$Nivel)*100/nrow(daem),2),"%")
+nb
+``` 
+
+La mayoría de empresas se encuentran en las secciones G: COMERCIO AL POR MAYOR Y AL POR MENOR; REPARACIÓN DE VEHÍCULOS AUTOMOTORES Y MOTOCICLETAS, C: INDUSTRIAS MANUFACTURERAS y L:ACTIVIDADES INMOBILIARIAS.
+Es muy curioso ver la cantidad de empresas en las sección G ya que en principio estas actividades no son tan populares en Colombia, esto podría mostrar que la base esta sesgada de alguna forma.
+
+### Vigencia
+
+``` {r message= FALSE, warning=FALSE}
+
+vig<-data.frame(as.numeric(gsub("[-].*","",daem$CONSTITUCION)))
+names(vig)[1]<-"V"
+daem$yr<-vig$V
+vig2<-vig%>%group_by(V)%>%count(V)
+vig2%>%hchart("column", hcaes(x = V, y = n))
+```
+
+La gráfica anterior muestra un crecimiento muy constante en el nacimiento de empresas hasta llegar a un máximo en el 2011, desde donde empieza una caída en los nacimiento hasta el año 2015.
+Para facilitar su entrenamiento, se discretisa la variable
+
+``` {r message= FALSE, warning=FALSE}
+anios<-quantile(daem$yr, probs = seq(0, 1, .1))
+
+for(i in 1:nrow(daem)){
+  ifelse(daem$yr[i]>=as.numeric(anios[1]) & daem$yr[i]<as.numeric(anios[2]),daem$anio[i]<-1,
+  ifelse(daem$yr[i]>=as.numeric(anios[2]) & daem$yr[i]<as.numeric(anios[3]),daem$anio[i]<-2,
+  ifelse(daem$yr[i]>=as.numeric(anios[3]) & daem$yr[i]<as.numeric(anios[4]),daem$anio[i]<-3,
+  ifelse(daem$yr[i]>=as.numeric(anios[4]) & daem$yr[i]<as.numeric(anios[5]),daem$anio[i]<-4,
+  ifelse(daem$yr[i]>=as.numeric(anios[5]) & daem$yr[i]<as.numeric(anios[6]),daem$anio[i]<-5,
+  ifelse(daem$yr[i]>=as.numeric(anios[6]) & daem$yr[i]<as.numeric(anios[7]),daem$anio[i]<-6,
+  ifelse(daem$yr[i]>=as.numeric(anios[7]) & daem$yr[i]<as.numeric(anios[8]),daem$anio[i]<-7,
+  ifelse(daem$yr[i]>=as.numeric(anios[8]) & daem$yr[i]<as.numeric(anios[9]),daem$anio[i]<-8,
+  ifelse(daem$yr[i]>=as.numeric(anios[9]) & daem$yr[i]<as.numeric(anios[10]),daem$anio[i]<-9,
+  ifelse(daem$yr[i]>=as.numeric(anios[10]) & daem$yr[i]<=as.numeric(anios[11]),daem$anio[i]<-10,0
+         ))))))))))
+}
+
+daem$yr<-as.factor(daem$yr)
+table(daem$yr)
+``` 
+
+
+### Departamento
+
+``` {r message= FALSE, warning=FALSE}
+table(daem$DEPARTAMENTO)
+```
+Para visualizar mejor los datos se puede generar un mapa coropletico con estos datos
+
+``` {r message= FALSE, warning=FALSE}
+# se preparan las bases para el mapa
+capa<- read_sf("D:/Dane 2021/Octubre/Tablero RELAB/Actualizacion  de bases/capa.shp")
+
+
+dep<-data.frame(daem$DEPARTAMENTO)
+names(dep)[1]<-"departamento"
+dep<-dep%>%group_by(departamento)%>%count(departamento)
+dep<-cbind(dep,data.frame(c(91,5,81,8,11,13,15,17,18,85,19,20,27,23,25,41,44,47,50,52,54,86,63,66,88,68,70,73,76,99)))
+names(dep)[3]<-"dpto_final"
+
+capa1<-left_join(x=capa,y=dep,sort=T)  
+capa1$dpto_final<-as.numeric(capa1$dpto_final)
+names(capa1)[5]<-"n"
+``` 
+
+Se crean la division de colores de la gráfica a partir de los quintiles de la cantidad de empresas por departamento
+
+``` {r message= FALSE, warning=FALSE}
+
+m<- leaflet(capa) %>%
+  setView(lng = -74.081, lat = 4.609, zoom = 5) %>%        # Se centra el mapa en Bogota
+  addProviderTiles(providers$CartoDB.Positron, group = "Plano")
+  
+bins1 <- as.numeric(quantile(dep$n, probs = seq(0, 1, .2)))
+pal1  <- colorBin("RdYlBu", domain = capa1$n, bins = bins1)     
+
+mytext1 <- paste(
+  "Departamento: ", capa1$DPTO_CNMBR,"<br/>", 
+  "Total:",capa1$n,#"<br/>",
+  #    "id_2:",deps1$id_2,
+  sep="") %>%
+  lapply(htmltools::HTML)
+
+m%>% addPolygons(fillColor = ~pal1(capa1$n),
+                 weight = 0.8,
+                 opacity = 1,
+                 color = "white",
+                 dashArray = "3",
+                 fillOpacity = 0.8,    
+                 #interaccion
+                 highlight = highlightOptions(
+                   weight = 5,
+                   color = "#666",
+                   dashArray = "",
+                   fillOpacity = 0.7,
+                   bringToFront = TRUE),
+                 #labels
+                 label = mytext1,
+                 labelOptions = labelOptions(
+                   style = list("font-weight" = "normal", padding = "3px 8px"),
+                   textsize = "15px",
+                   direction = "auto"))%>%
+                addLegend(pal = pal1, values = ~capa1$n, opacity = 0.7, title = NULL,
+                position = "bottomright",layerId = "fur1")
+``` 
+Claramente se ve como la región oriental, la Amazonia, el Choco y la Guajira tienen una cantidad muy pequeña de empresas, esto es de esperarse ya que estas regiones presentan baja cantidad de población además de un continuo abandono por parte del gobierno, por otro lado regiones como Bogota, Cundinamarca, Antioquia, Atlántico y el valle, al contener las capitales principales muestran una alta cantidad de empresas, esto respalda la bibliográfica que afirma que las empresas de alto crecimiento (y empresas en general) se ubican en ciudades principales.
+
+
+## Datos de balance
+
+Se empieza revisando la cantidad de duplicados de los balances por año
+
+``` {r message= FALSE, warning=FALSE}
+tab1<-cbind(c("2017","2018","2019","2020"))
+tab1<-cbind(tab1,c(length(which(duplicated(bal17$ID))),length(which(duplicated(bal18$ID))),length(which(duplicated(bal19$ID))),length(which(duplicated(bal20$ID)))))
+tab1<-data.frame(tab1)
+names(tab1)<-c("Año","Duplicados")
+
+kable(tab1,caption = "Identificadores duplicados")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r message= FALSE, warning=FALSE}
+tab2<-cbind(c("2017","2018","2019","2020"))
+tab2<-cbind(tab2,c(length(which(duplicated(bal17))),length(which(duplicated(bal18))),length(which(duplicated(bal19))),length(which(duplicated(bal20)))))
+tab2<-data.frame(tab2)
+names(tab2)<-c("Año","Duplicados")
+
+kable(tab2,caption = "Todas las variables duplicadas")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+Se eliminan los registros duplicados 
+
+``` {r message= FALSE, warning=FALSE}
+bal17<-bal17[!duplicated(bal17),]
+bal18<-bal18[!duplicated(bal18),]
+bal19<-bal19[!duplicated(bal19),]
+bal20<-bal20[!duplicated(bal20),]
+```
+
+Ahora se compara la cantidad de registros y de columnas entre los diferentes años
+``` {r message= FALSE, warning=FALSE}
+tab3<-cbind(c("2017","2018","2019","2020"))
+tab3<-cbind(tab3,c(ncol(bal17),ncol(bal18),ncol(bal19),ncol(bal20)))
+tab3<-data.frame(tab3)
+names(tab3)<-c("Año","Cantidad de columnas")
+
+kable(tab3,caption = "Cantidad de columnas")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r message= FALSE, warning=FALSE}
+tab3<-cbind(c("2017","2018","2019","2020"))
+tab3<-cbind(tab3,c(nrow(bal17),nrow(bal18),nrow(bal19),nrow(bal20)))
+tab3<-data.frame(tab3)
+names(tab3)<-c("Año","Cantidad de registros")
+
+kable(tab3,caption = "Cantidad de registros")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+La base del año 2020 tiene una columna extra
+
+``` {r message= FALSE, warning=FALSE}
+names(bal20)[which(names(bal20)%notin%names(bal17))]
+table(bal20$BASICO)
+``` 
+Como no se tiene continuidad ni información sobre esa columna, se decidió eliminarla de la base
+``` {r message= FALSE, warning=FALSE}
+bal20<-bal20%>%select(-BASICO)
+``` 
+
+Tambien existe una diferencia en la cantidad de registros, que se tratara mas adelante. Por inspección visual se puede ver que los registros del año 2020 no se encuentran en las mismas unidades que los demás años.  
+``` {r message= FALSE, warning=FALSE}
+idd<-bal17$ID[1]
+rbind(bal17[bal17$ID==idd,],bal18[bal18$ID==idd,],bal19[bal19$ID==idd,],bal20[bal20$ID==idd,])
+``` 
+Para estandarizar las unidades se divide los valores del año 2020 por 1000
+
+``` {r message= FALSE, warning=FALSE}
+bal20[,2:ncol(bal20)]<-bal20[,2:ncol(bal20)]/1000
+idd<-bal17$ID[1]
+rbind(bal17[bal17$ID==idd,],bal18[bal18$ID==idd,],bal19[bal19$ID==idd,],bal20[bal20$ID==idd,])
+``` 
+
+Antes de empezar a revisar las variables que potencialmente son de interés, se revisara la completitud de todas las variables en las cuatro bases de balances
+
+``` {r message= FALSE, warning=FALSE}
+"2017"
+colSums(is.na(bal17))
+"2018"
+colSums(is.na(bal18))
+"2019"
+colSums(is.na(bal19))
+"2020"
+colSums(is.na(bal20))
+``` 
+
+Para empezar el estudio se van a tener en cuentas las siguientes variables
+
+* R: Resultado del ejercicio: 
+  + RII: Impuesto de renta 
+  + RA: Resultados antes de impuestos:  
+    - RAI: Total ingresos: se calcula con las variables
+      - RAIE Ingresos operacionales: se calcula con las variables:
+        - RAIE4120:  Ingresos de actividades ordinarias	
+        - RAIE4130:  Otros ingresos operacionales	
+      - RAIX Ingresos no operacionales
+    - RAG: TOTAL GASTOS
+      - RAGE: Costos y Gastos operacionales
+        - RAGE51: Gastos operacionales adm 
+        - RAGE52: Gastos operacionales ventas  
+        - RAGE55: Otros gastos operativos
+        - RAGE60: Costo de ventas
+      - RAGX: Gastos no operacionales 
+     
+* Tesorería : Variable calculada con la relación (ACC-ACC114)/PSC 
+  + ACC: TOTAL ACTIVO CORRIENTE, se calcula con
+    - ACC211 Efectivo y equivalentes de efectivo
+    - ACC113 Cuentas por cobrar
+    - ACC114 Inventarios
+    - ACC118 Otros Activos
+    - ACC11G Activos biológicos 
+    - ACC11H Activos por impuestos corrientes
+  + ACC114: Inventarios
+  + PSC : TOTAL PASIVO CORRIENTE , se calcula con
+     - PSC223 Cuentas por Pagar 
+     - PSC224 Pasivos por impuestos corrientes
+     - PSC225 Provisiones corrientes por beneficios a los empleados 
+     - PSC126 Pasivos estimados y provisiones
+     - PSC228 Otros pasivos corrientes
+     - PSC12H Pasivos incluidos en grupos de activos para su disposición clasificados como mantenidos para la                su disposición clasificados como mantenidos para la venta
+
+* Liquidez : Variable calculada con la relación  ACL/ACC
+  + AC: ACTIVO, se calcula a partir de 
+    - ACL TOTAL ACTIVO NO CORRIENTE:
+      - ACL214 Inventarios no corrientes
+      - ACL115 Propiedad planta y equipo
+      - ACL118 Otros Activos
+      - ACL11M Propiedad de inversión
+      - ACL11O Activos biológicos no corrientes
+      - ACL11P Plusvalía
+      - ACL11Q Activos intangibles distintos de la plusvalía
+      - ACL11R Activos por impuestos diferidos
+    - ACC TOTAL ACTIVO CORRIENTE
+      - ACC211 Efectivo y equivalentes de efectivo
+      - ACC113 Cuentas por cobrar
+      - ACC114 Inventarios
+      - ACC118 Otros Activos
+      - ACC11G Activos biológicos 
+      - ACC11H Activos por impuestos corrientes
+    - PSC: TOTAL PASIVO CORRIENTE
+
+* Solvencia: Variable calculada con la relación  AC/PS
+  + AC: ACTIVO
+    - ACL TOTAL ACTIVO NO CORRIENTE,
+    - ACC TOTAL ACTIVO CORRIENTE
+  + PS: TOTAL PASIVO
+    - PSC: TOTAL PASIVO CORRIENTE
+    - PSL: TOTAL PASIVO NO CORRIENTE:
+      - PSL224: Pasivos por impuestos corrientes
+      - PSL225: Provisiones corrientes por beneficios a los empleados 
+      - PSL228: Otros pasivos corrientes 
+      - PSL12J: Pasivo por impuestos diferidos
+
+* Endeudamiento: PS/PT
+  + PS: TOTAL PASIVO
+  + PT: PATRIMONIO
+    - PSL224: Pasivos por impuestos corrientes
+    - PSL225: Provisiones corrientes por beneficios a los empleados 
+    - PSL228: Otros pasivos corrientes
+    - PSL12J: Pasivo por impuestos diferidos
+   
+* Rentabilidad: R/RAIE
+  + R:    Resultado del ejercicio 
+  + RAIE: Ingresos operacionales
+  
+* Fondo de maniobra: AC-PC
+  + AC:  Activo
+  + PSC: TOTAL PASIVO CORRIENTE
+
+* Ratio de Cobertura de Intereses: RA/RAGXFI
+  + RA: Resultados antes de impuestos
+  + RAGXFI: Gastos financieros
+  
+En vista de que existen relaciones entre las variables, se tratara de imputar la mayor cantidad de valores posibles
+
+1) RAIE tiene faltantes en 2020, pero no existe información (variables RAIE4120 y RAIE4130) para imputar los valores con la formula
+
+2) RAGE = RAGE51+RAGE52+RAGE55+RAGE60 :
+
+``` {r message= FALSE, warning=FALSE}
+na_rag_17<-which(is.na(bal17$RAGE))
+na_rag_18<-which(is.na(bal18$RAGE))
+na_rag_19<-which(is.na(bal19$RAGE))
+na_rag_20<-which(is.na(bal20$RAGE))
+
+for(i in na_rag_17){
+  if(!is.na(bal17$RAGE51[i])&!is.na(bal17$RAGE52[i])&!is.na(bal17$RAGE55[i])&!is.na(bal17$RAGE60[i])){
+  bal17$RAGE[i]<- bal17$RAGE51[i]+ bal17$RAGE52[i]+ bal17$RAGE55[i]+ bal17$RAGE60[i]
+}}
+for(i in na_rag_18){
+  if(!is.na(bal18$RAGE51[i])&!is.na(bal18$RAGE52[i])&!is.na(bal18$RAGE55[i])&!is.na(bal18$RAGE60[i])){
+  bal18$RAGE[i]<- bal18$RAGE51[i]+ bal18$RAGE52[i]+ bal18$RAGE55[i]+ bal18$RAGE60[i]
+}}
+for(i in na_rag_19){
+  if(!is.na(bal19$RAGE51[i])&!is.na(bal19$RAGE52[i])&!is.na(bal19$RAGE55[i])&!is.na(bal19$RAGE60[i])){
+  bal19$RAGE[i]<- bal19$RAGE51[i]+ bal19$RAGE52[i]+ bal19$RAGE55[i]+ bal19$RAGE60[i]
+}}
+for(i in na_rag_20){
+  if(!is.na(bal20$RAGE51[i])&!is.na(bal20$RAGE52[i])&!is.na(bal20$RAGE55[i])&!is.na(bal20$RAGE60[i])){
+  bal20$RAGE[i]<- bal20$RAGE51[i]+ bal20$RAGE52[i]+ bal20$RAGE55[i]+ bal20$RAGE60[i]
+}}
+``` 
+
+3) RAE = RAIE-RAGE
+solo tiene valores faltantes en el año 2020 
+``` {r message= FALSE, warning=FALSE}
+na_rae<-which(is.na(bal20$RAE))
+
+for(i in na_rae){
+  if(!is.na(bal20$RAIE[i])&!is.na(bal20$RAGE[i])){
+    bal20$RAE[i]<-bal20$RAIE[i]-bal20$RAGE[i]
+  }
+}
+``` 
+
+4) No Se tienen valores para imputar RAGXFI y RAIXFI
+
+5) RAXFI = RAIXFI-RAGXFI
+``` {r message= FALSE, warning=FALSE}
+na_RAXFI_17<-which(is.na(bal17$RAXFI))
+na_RAXFI_18<-which(is.na(bal18$RAXFI))
+na_RAXFI_19<-which(is.na(bal19$RAXFI))
+na_RAXFI_20<-which(is.na(bal20$RAXFI))
+
+for(i in na_RAXFI_17){
+  if(!is.na(bal17$RAIXFI[i])&!is.na(bal17$RAGXFI[i])){
+  bal17$RAXFI[i]<- bal17$RAIXFI[i]- bal17$RAGXFI[i]
+}}
+for(i in na_RAXFI_18){
+  if(!is.na(bal18$RAIXFI[i])&!is.na(bal18$RAGXFI[i])){
+  bal18$RAXFI[i]<- bal18$RAIXFI[i]- bal18$RAGXFI[i]
+}}
+for(i in na_RAXFI_19){
+  if(!is.na(bal19$RAIXFI[i])&!is.na(bal19$RAGXFI[i])){
+  bal19$RAXFI[i]<- bal19$RAIXFI[i]- bal19$RAGXFI[i]
+}}
+for(i in na_RAXFI_20){
+  if(!is.na(bal20$RAIXFI[i])&!is.na(bal20$RAGXFI[i])){
+  bal20$RAXFI[i]<- bal20$RAIXFI[i]- bal20$RAGXFI[i]
+}}
+``` 
+
+6) Para RAIX y RAGX no es posible imputar los valores
+
+7) RAX = RAIX-RAGX
+
+``` {r message= FALSE, warning=FALSE}
+na_RAX_17<-which(is.na(bal17$RAX))
+na_RAX_18<-which(is.na(bal18$RAX))
+na_RAX_19<-which(is.na(bal19$RAX))
+na_RAX_20<-which(is.na(bal20$RAX))
+
+for(i in na_RAX_17){
+  if(!is.na(bal17$RAIX[i])&!is.na(bal17$RAGX[i])){
+  bal17$RAX[i]<- bal17$RAIX[i]- bal17$RAGX[i]
+}}
+for(i in na_RAX_18){
+  if(!is.na(bal18$RAIX[i])&!is.na(bal18$RAGX[i])){
+  bal18$RAX[i]<- bal18$RAIX[i]- bal18$RAGX[i]
+}}
+for(i in na_RAX_19){
+  if(!is.na(bal19$RAIX[i])&!is.na(bal19$RAGX[i])){
+  bal19$RAX[i]<- bal19$RAIX[i]- bal19$RAGX[i]
+}}
+for(i in na_RAX_20){
+  if(!is.na(bal20$RAIX[i])&!is.na(bal20$RAGX[i])){
+  bal20$RAX[i]<- bal20$RAIX[i]- bal20$RAGX[i]
+}}
+``` 
+
+8) RAI = RAIE+RAIX
+solo se tienen valores faltantes en el año 2020
+
+``` {r message= FALSE, warning=FALSE}
+na_RAI<-which(is.na(bal20$RAI))
+
+for(i in na_rae){
+  if(!is.na(bal20$RAIE[i])&!is.na(bal20$RAIX[i])){
+    bal20$RAI[i]<-bal20$RAIE[i]+bal20$RAIX[i]
+  }
+}
+``` 
+
+9) RAG = RAGE+RAGX
+
+``` {r message= FALSE, warning=FALSE}
+na_RAG_17<-which(is.na(bal17$RAG))
+na_RAG_18<-which(is.na(bal18$RAG))
+na_RAG_19<-which(is.na(bal19$RAG))
+na_RAG_20<-which(is.na(bal20$RAG))
+
+for(i in na_RAG_17){
+  if(!is.na(bal17$RAGE[i])&!is.na(bal17$RAGX[i])){
+  bal17$RAG[i]<- bal17$RAGE[i]+ bal17$RAGX[i]
+}}
+for(i in na_RAG_18){
+  if(!is.na(bal18$RAGE[i])&!is.na(bal18$RAGX[i])){
+  bal18$RAG[i]<- bal18$RAGE[i]+ bal18$RAGX[i]
+}}
+for(i in na_RAG_19){
+  if(!is.na(bal19$RAGE[i])&!is.na(bal19$RAGX[i])){
+  bal19$RAG[i]<- bal19$RAGE[i]+ bal19$RAGX[i]
+}}
+for(i in na_RAG_20){
+  if(!is.na(bal20$RAGE[i])&!is.na(bal20$RAGX[i])){
+  bal20$RAG[i]<- bal20$RAGE[i]+ bal20$RAGX[i]
+}}
+``` 
+
+Las siguientes variables son las que potencialmente se usaran para etiquetar las empresas, por lo que su completitud es muy importante
+
+10) RA = RAI-RAG
+Solo el año 2020 tiene valores faltantes
+
+``` {r message= FALSE, warning=FALSE}
+na_RA<-which(is.na(bal20$RA))
+
+for(i in na_RA){
+  if(!is.na(bal20$RAI[i])&!is.na(bal20$RAG[i])){
+    bal20$RA[i]<-bal20$RAI[i]+bal20$RAG[i]
+  }
+}
+``` 
+
+11) R = RA-RIII
+
+``` {r message= FALSE, warning=FALSE}
+na_R<-which(is.na(bal20$R))
+
+for(i in na_R){
+  if(!is.na(bal20$RA[i])&!is.na(bal20$RIII[i])){
+    bal20$R[i]<-bal20$RA[i]+bal20$RIII[i]
+  }
+}
+``` 
+
+12) ACC =  ACC211+ACC113+ACC114+ACC118+ACC11G+ACC11H   no se puede imputar por que falta la variable ACC11G
+13) ACL =  ACL214+ACL115+ACL118+ACL11M+ACL11O+ACL11P+ACL11Q+ACL11R no se puede imputar por que falta la variable ACL214
+14) AC  =  ACL+ACC solo tiene valores faltantes en el año 2020
+
+``` {r message= FALSE, warning=FALSE}
+na_AC<-which(is.na(bal20$AC))
+
+for(i in na_AC){
+  if(!is.na(bal20$ACL[i])&!is.na(bal20$ACC[i])){
+    bal20$AC[i]<-bal20$ACL[i]+bal20$ACC[i]
+  }
+}
+``` 
+
+15) PSC = PSC223+PSC224+PSC225+PSC126+PSC228+PSC12H no se puede imputar por que falta la variable PSC126
+16) PSL = PSL224+PSL225+PSL228+PSL12J no se puede imputar por que falta la variable PSL224
+17) PS  = PSC+PSL Solo el año 2020 tiene valores faltantes
+
+``` {r message= FALSE, warning=FALSE}
+na_PS<-which(is.na(bal20$PS))
+
+for(i in na_PS){
+  if(!is.na(bal20$PSC[i])&!is.na(bal20$PSL[i])){
+    bal20$PS[i]<-bal20$PSC[i]+bal20$PSL[i]
+  }
+}
+``` 
+
+18) P = PS+PT Solo el año 2020 tiene valores faltantes
+
+``` {r message= FALSE, warning=FALSE}
+na_P<-which(is.na(bal20$P))
+
+for(i in na_P){
+  if(!is.na(bal20$PS[i])&!is.na(bal20$PT[i])){
+    bal20$P[i]<-bal20$PS[i]+bal20$PT[i]
+  }
+}
+``` 
+
+Luego de recuperar la mayor cantidad de valores posibles se crean las variables que posiblemente se usaran en el ejercicio, porque estas recogen la mayor parte de la información de los balances. Primero se marca cada variable para poder reconocerla después de que se realice el cruce
+
+``` {r message= FALSE, warning=FALSE}
+names(bal17)[2:ncol(bal17)]<-paste0(names(bal17)[2:ncol(bal17)],"17")
+names(bal18)[2:ncol(bal18)]<-paste0(names(bal18)[2:ncol(bal18)],"18")
+names(bal19)[2:ncol(bal19)]<-paste0(names(bal19)[2:ncol(bal19)],"19")
+names(bal20)[2:ncol(bal20)]<-paste0(names(bal20)[2:ncol(bal20)],"20")
+``` 
+
+Se generan las nuevas variables
+
+``` {r message= FALSE, warning=FALSE}
+bal17$tesoreria17<-(bal17$ACC17-bal17$ACC11417)/bal17$PSC17
+bal17$liquides17<-bal17$AC17/bal17$PSC17
+bal17$solvencia17<-bal17$AC17/bal17$PS17
+bal17$endeudamiento17<-bal17$PS17/bal17$PT17
+bal17$rentabilidad17<-bal17$R17/bal17$RAIE17
+bal17$fondo_ma17<-bal17$AC17-bal17$PSC17
+bal17$recoin17<-bal17$RA17/bal17$RAGXFI17
+
+bal18$tesoreria18<-(bal18$ACC18-bal18$ACC11418)/bal18$PSC18
+bal18$liquides18<-bal18$AC18/bal18$PSC18
+bal18$solvencia18<-bal18$AC18/bal18$PS18
+bal18$endeudamiento18<-bal18$PS18/bal18$PT18
+bal18$rentabilidad18<-bal18$R18/bal18$RAIE18
+bal18$fondo_ma18<-bal18$AC18-bal18$PSC18
+bal18$recoin18<-bal18$RA18/bal18$RAGXFI18
+
+bal19$tesoreria19<-(bal19$ACC19-bal19$ACC11419)/bal19$PSC19
+bal19$liquides19<-bal19$AC19/bal19$PSC19
+bal19$solvencia19<-bal19$AC19/bal19$PS19
+bal19$endeudamiento19<-bal19$PS19/bal19$PT19
+bal19$rentabilidad19<-bal19$R19/bal19$RAIE19
+bal19$fondo_ma19<-bal19$AC19-bal19$PSC19
+bal19$recoin19<-bal19$RA19/bal19$RAGXFI19
+
+bal20$tesoreria20<-(bal20$ACC20-bal20$ACC11420)/bal20$PSC20
+bal20$liquides20<-bal20$AC20/bal20$PSC20
+bal20$solvencia20<-bal20$AC20/bal20$PS20
+bal20$endeudamiento20<-bal20$PS20/bal20$PT20
+bal20$rentabilidad20<-bal20$R20/bal20$RAIE20
+bal20$fondo_ma20<-bal20$AC20-bal20$PSC20
+bal20$recoin20<-bal20$RA20/bal20$RAGXFI20
+``` 
+
+
+Se revisa el resultado de la creación de las nuevas variables
+
+``` {r message= FALSE, warning=FALSE}
+"2017"
+colSums(is.na(bal17[,49:55]))
+"2018"
+colSums(is.na(bal18[,49:55]))
+"2019"
+colSums(is.na(bal19[,49:55]))
+"2020"
+colSums(is.na(bal20[,49:55]))
+``` 
+Las variables tesorería y ratio de cobertura de intereses tienen aproximadamente un 30% de valores faltantes, en donde el año con mas valores faltantes en todas las variables es el año 2020.
+Ahora para tener continuidad en las bases se mantendrá solo los registros que se encuentran en todas los balances y en la base "daem" 
+
+``` {r message= FALSE, warning=FALSE}
+identical(bal17$ID,bal18$ID) #si 
+identical(bal17$ID,bal19$ID) #si 
+identical(bal19$ID,bal20$ID) #no
+
+length(which(bal17$ID %notin% bal20$ID)) 
+length(which(bal20$ID %notin% bal17$ID)) 
+``` 
+Las bases de los años 2017 a 2019 contienen las mismas empresas, pero en el año 2020 desaparecieron 387, probablemente causado por la caída económica dada por la pandemia, estas empresas se eliminaran de los años anteriores.
+
+``` {r message= FALSE, warning=FALSE}
+bal17<-bal17[bal17$ID%in%bal20$ID,]
+bal18<-bal18[bal18$ID%in%bal20$ID,]
+bal19<-bal19[bal19$ID%in%bal20$ID,]
+bal20<-bal20[bal20$ID%in%bal19$ID,]
+
+length(which(bal17$ID %notin% bal20$ID)) 
+length(which(bal20$ID %notin% bal17$ID)) 
+``` 
+## Generacion de la para EAC
+
+Se realiza el primer cruce entre la base principal y las bases de los balances
+
+``` {r message= FALSE, warning=FALSE}
+#data<-inner_join(daem,bal17,by="ID")   
+#data<-inner_join(data,bal18,by="ID")   
+#data<-inner_join(data,bal19,by="ID")   
+#data<-inner_join(data,bal20,by="ID")  
+``` 
+
+Existen varias posibilidades en la elección de las variables y la metodología para realizar las marcas, como primer ensayo se seleccionara como umbral el 10% de crecimiento sugerido en la ultima actualización de la metodología OCDE (la otra opción es del 20% pero puede ser muy restrictiva), se eligió como variable de estudio el "resultado del ejercicio (R)" ya que condensa el ingreso real y total de la empresa al final del año, la siguiente opción son los "resultados antes de impuestos (RA)".
+Se probaran 2 diferentes metodologías, la primera sera de un crecimiento continuo superior al 10% en la variación porcentual entre los años 2018 a 2020, este método tiene la ventaja de tener en cuenta los valores de todos los años. La siguiente es de un crecimiento medio anualizado superior al 10%, que es la metodología sugerida por la OCDE, la cual tiene la desventaja de solo operar con los valores del primer y ultimo año (que en este caso es el 2020, un año atípico por la pandemia).
+
+Por variación porcentual tenemos:
+
+############################## ensayo con RA ###################################
+Nos quedamos solo con los registros completos 
+
+``` {r message= FALSE, warning=FALSE}
+
+bal20<-bal20[!is.na(bal20$RAIE20),]
+
+bal17<-bal17[bal17$ID%in%bal20$ID,]
+bal18<-bal18[bal18$ID%in%bal20$ID,]
+bal19<-bal19[bal19$ID%in%bal20$ID,]
+bal20<-bal20[bal20$ID%in%bal19$ID,]
+
+length(which(bal17$ID %notin% bal20$ID)) 
+length(which(bal20$ID %notin% bal17$ID)) 
+
+data<-inner_join(daem,bal17,by="ID")   
+data<-inner_join(data,bal18,by="ID")   
+data<-inner_join(data,bal19,by="ID")   
+data<-inner_join(data,bal20,by="ID")
+
+``` 
+
+#################################################################################
+
+
+
+**sobre el 10%**
+
+``` {r message= FALSE, warning=FALSE}
+#1a) Alto crecimiento 1 periodo 17 a 18
+data$A1_1_1<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.1 & data$EMPLEADOS >9 ,1,0)
+
+#2a) Alto crecimiento 2 periodos 17 a 18 y 18 a 19
+data$A1_2_1<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.1 & ((data$RAIE19/data$RAIE18)-1) >0.1  & data$EMPLEADOS >9,1,0 )
+
+#3a) Alto crecimiento  total 3 periodos 17 a 18, 18 a 19 y 19 a 20
+data$A1_3_1<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.1 & ((data$RAIE19/data$RAIE18)-1) >0.1 & ((data$RAIE20/data$RAIE19)-1) >0.1 & data$EMPLEADOS >9,1,0 )
+
+``` 
+
+**sobre el 20%**
+
+``` {r message= FALSE, warning=FALSE}
+#1a) Alto crecimiento 1 periodo 17 a 18
+data$A1_1_2<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.2 & data$EMPLEADOS >9 ,1,0)
+
+#2a) Alto crecimiento 2 periodos 17 a 18 y 18 a 19
+data$A1_2_2<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.2 & ((data$RAIE19/data$RAIE18)-1) >0.2 & data$EMPLEADOS >9,1,0 )
+
+#3a) Alto crecimiento  total 3 periodos 17 a 18, 18 a 19 y 19 a 20
+data$A1_3_2<-ifelse( ((data$RAIE18/data$RAIE17)-1) >0.2 & ((data$RAIE19/data$RAIE18)-1) >0.2 & ((data$RAIE20/data$RAIE19)-1) >0.2 & data$EMPLEADOS >9,1,0 )
+``` 
+
+**crecimiento medio anualizado**
+
+**sobre el 10%**
+
+``` {r message= FALSE, warning=FALSE}
+data$A2_1<-ifelse( (((data$RAIE20/data$RAIE17)^(1/3))-1) >0.1 & data$EMPLEADOS >9 ,1,0)
+data$A2_1[is.na(data$A2_1)]<-0
+``` 
+
+**sobre el 20%**
+
+``` {r message= FALSE, warning=FALSE}
+data$A2_2<-ifelse( (((data$RAIE20/data$RAIE17)^(1/3))-1) >0.2 & data$EMPLEADOS >9 ,1,0)
+data$A2_2[is.na(data$A2_2)]<-0
+``` 
+
+Resultados
+
+``` {r message= FALSE, warning=FALSE}
+colSums(data%>%select(A1_3_1,A1_3_2,A2_1,A2_2))*100/nrow(data)
+``` 
+Con el primer método se obtiene un porcentaje que concuerda mas con lo esperado, por lo que se seguirá esta metodología.
+
+## Estudio de las primeras variables
+
+Antes de adjuntar las demás bases se estudiaran las variables que fueron creadas
+
+### Revisión de campos vacíos
+
+``` {r message= FALSE, warning=FALSE}
+tab4<-cbind(c("2017","2018","2019","2020"))
+tab4<-cbind(tab4,c(length(which(is.na(data$tesoreria17))),length(which(is.na(data$tesoreria18))),length(which(is.na(data$tesoreria19))),length(which(is.na(data$tesoreria20)))))
+tab4<-data.frame(tab4)
+names(tab4)<-c("Año","Vacios")
+kable(tab4,caption = "Tesoreria")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+
+
+``` {r echo=FALSE, warning=FALSE}
+tab5<-cbind(c("2017","2018","2019","2020"))
+tab5<-cbind(tab5,c(length(which(is.na(data$liquides17))),length(which(is.na(data$liquides18))),length(which(is.na(data$liquides19))),length(which(is.na(data$liquides20)))))
+tab5<-data.frame(tab5)
+names(tab5)<-c("Año","Vacios")
+kable(tab5,caption = "Liquides")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab6<-cbind(c("2017","2018","2019","2020"))
+tab6<-cbind(tab6,c(length(which(is.na(data$solvencia17))),length(which(is.na(data$solvencia18))),length(which(is.na(data$solvencia19))),length(which(is.na(data$solvencia20)))))
+tab6<-data.frame(tab6)
+names(tab6)<-c("Año","Vacios")
+kable(tab6,caption = "solvencia")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab7<-cbind(c("2017","2018","2019","2020"))
+tab7<-cbind(tab7,c(length(which(is.na(data$endeudamiento17))),length(which(is.na(data$endeudamiento18))),length(which(is.na(data$endeudamiento19))),length(which(is.na(data$endeudamiento20)))))
+tab7<-data.frame(tab7)
+names(tab7)<-c("Año","Vacios")
+kable(tab7,caption = "Endeudamiento")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab8<-cbind(c("2017","2018","2019","2020"))
+tab8<-cbind(tab8,c(length(which(is.na(data$rentabilidad17))),length(which(is.na(data$rentabilidad18))),length(which(is.na(data$rentabilidad19))),length(which(is.na(data$rentabilidad20)))))
+tab8<-data.frame(tab8)
+names(tab8)<-c("Año","Vacios")
+kable(tab8,caption = "Rentabilidad")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab9<-cbind(c("2017","2018","2019","2020"))
+tab9<-cbind(tab9,c(length(which(is.na(data$rfondo_ma17))),length(which(is.na(data$fondo_ma18))),length(which(is.na(data$fondo_ma19))),length(which(is.na(data$fondo_ma20)))))
+tab9<-data.frame(tab9)
+names(tab9)<-c("Año","Vacios")
+kable(tab9,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab9<-cbind(c("2017","2018","2019","2020"))
+tab9<-cbind(tab9,c(length(which(is.na(data$fondo_ma17))),length(which(is.na(data$fondo_ma18))),length(which(is.na(data$fondo_ma19))),length(which(is.na(data$fondo_ma20)))))
+tab9<-data.frame(tab9)
+names(tab9)<-c("Año","Vacios")
+kable(tab9,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab10<-cbind(c("2017","2018","2019","2020"))
+tab10<-cbind(tab10,c(length(which(is.na(data$recoin17))),length(which(is.na(data$recoin18))),length(which(is.na(data$recoin19))),length(which(is.na(data$recoin20)))))
+tab10<-data.frame(tab10)
+names(tab10)<-c("Año","Vacios")
+kable(tab10,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+### Variables no finitas
+
+
+``` {r message= FALSE, warning=FALSE}
+tab4<-cbind(c("2017","2018","2019","2020"))
+tab4<-cbind(tab4,c(length(which(!is.finite(data$tesoreria17))),length(which(!is.finite(data$tesoreria18))),length(which(!is.finite(data$tesoreria19))),length(which(!is.finite(data$tesoreria20)))))
+tab4<-data.frame(tab4)
+names(tab4)<-c("Año","Vacios")
+kable(tab4,caption = "Tesoreria")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+
+
+``` {r echo=FALSE, warning=FALSE}
+tab5<-cbind(c("2017","2018","2019","2020"))
+tab5<-cbind(tab5,c(length(which(!is.finite(data$liquides17))),length(which(!is.finite(data$liquides18))),length(which(!is.finite(data$liquides19))),length(which(!is.finite(data$liquides20)))))
+tab5<-data.frame(tab5)
+names(tab5)<-c("Año","Vacios")
+kable(tab5,caption = "Liquides")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab6<-cbind(c("2017","2018","2019","2020"))
+tab6<-cbind(tab6,c(length(which(!is.finite(data$solvencia17))),length(which(!is.finite(data$solvencia18))),length(which(!is.finite(data$solvencia19))),length(which(!is.finite(data$solvencia20)))))
+tab6<-data.frame(tab6)
+names(tab6)<-c("Año","Vacios")
+kable(tab6,caption = "solvencia")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab7<-cbind(c("2017","2018","2019","2020"))
+tab7<-cbind(tab7,c(length(which(!is.finite(data$endeudamiento17))),length(which(!is.finite(data$endeudamiento18))),length(which(!is.finite(data$endeudamiento19))),length(which(!is.finite(data$endeudamiento20)))))
+tab7<-data.frame(tab7)
+names(tab7)<-c("Año","Vacios")
+kable(tab7,caption = "Endeudamiento")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab8<-cbind(c("2017","2018","2019","2020"))
+tab8<-cbind(tab8,c(length(which(!is.finite(data$rentabilidad17))),length(which(!is.finite(data$rentabilidad18))),length(which(!is.finite(data$rentabilidad19))),length(which(!is.finite(data$rentabilidad20)))))
+tab8<-data.frame(tab8)
+names(tab8)<-c("Año","Vacios")
+kable(tab8,caption = "Rentabilidad")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab9<-cbind(c("2017","2018","2019","2020"))
+tab9<-cbind(tab9,c(length(which(!is.finite(data$rfondo_ma17))),length(which(!is.finite(data$fondo_ma18))),length(which(!is.finite(data$fondo_ma19))),length(which(!is.finite(data$fondo_ma20)))))
+tab9<-data.frame(tab9)
+names(tab9)<-c("Año","Vacios")
+kable(tab9,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+``` {r echo=FALSE, warning=FALSE}
+tab10<-cbind(c("2017","2018","2019","2020"))
+tab10<-cbind(tab10,c(length(which(!is.finite(data$recoin17))),length(which(!is.finite(data$recoin18))),length(which(!is.finite(data$recoin19))),length(which(!is.finite(data$recoin20)))))
+tab10<-data.frame(tab10)
+names(tab10)<-c("Año","Vacios")
+kable(tab10,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "black") 
+``` 
+
+Las variables rentabilidad y ratio de cobertura de intereses están relacionadas con las variables usadas para etiquetar las empresas por lo que no se usaran como predictores.
+
+Para el análisis de correlación de las variables por medio del factor de inflación de la varianza (mide el nivel de multicolinealidad), se eliminaran temporalmente los valores faltantes y no finitos de las variables, si resultan útiles estas variables la eliminación sera permanente.
+
+``` {r message= FALSE, warning=FALSE}
+datemp<-data
+data<-data[!is.na(data$tesoreria17),]
+data<-data[!is.na(data$tesoreria18),]
+data<-data[!is.na(data$tesoreria19),]
+data<-data[!is.na(data$tesoreria20),]
+
+data<-data[is.finite(data$tesoreria17),]
+data<-data[is.finite(data$tesoreria18),]
+data<-data[is.finite(data$tesoreria19),]
+data<-data[is.finite(data$tesoreria20),]
+#---
+data<-data[!is.na(data$liquides19),]
+data<-data[!is.na(data$liquides20),]
+
+data<-data[is.finite(data$liquides18),]
+data<-data[is.finite(data$liquides19),]
+data<-data[is.finite(data$liquides20),]
+#---
+data<-data[!is.na(data$solvencia20),]
+
+data<-data[is.finite(data$solvencia20),]
+#---
+data<-data[!is.na(data$endeudamiento20),]
+
+data<-data[is.finite(data$endeudamiento20),]
+#---
+data<-data[!is.na(data$fondo_ma19),]
+data<-data[!is.na(data$fondo_ma20),]
+
+data<-data[is.finite(data$fondo_ma18),]
+data<-data[is.finite(data$fondo_ma19),]
+data<-data[is.finite(data$fondo_ma20),]
+
+``` 
+
+Se realizara un estudio de las posibles correlaciones presentes en las variables que se usaran en el modelo
+
+``` {r message= FALSE, warning=FALSE}
+require(corrplot)
+corrplot.mixed(corr = cor(data[,c("anio","EMPLEADOS","tesoreria17","liquides17","solvencia17","endeudamiento17","fondo_ma17")],method = "pearson"))
+``` 
+
+
+
+``` {r message= FALSE, warning=FALSE}
+modelo <- lm(A1_3_1 ~ anio+emp+liquides17+solvencia17+endeudamiento17+fondo_ma17+Nivel, data = data)
+summary(modelo)
+``` 
+
+``` {r message= FALSE, warning=FALSE}
+vif (modelo)
+``` 
+
+Tanto el factor de inflación de varianza, como la matriz de correlaciones muestran que existe relación entre las variables tesorería y liquidez, de estas solo se dejara la ultima.
+
+``` {r message= FALSE, warning=FALSE}
+df<-data%>%select(ID,anio,emp,DEPARTAMENTO,tesoreria17,liquides17,solvencia17,endeudamiento17,fondo_ma17,Nivel,A1_3_1)
+``` 
+
+``` {r message= FALSE, warning=FALSE}
+
+a<-boxplot(df$solvencia17)
+b<-boxplot(df$endeudamiento17)
+c<-boxplot(df$liquides17)
+d<-boxplot(df$fondo_ma17)
+e<-boxplot(df$tesoreria17)
+
+dfa<-df[!(df$solvencia17%in% a$out),]
+dfb<-dfa[!(dfa$endeudamiento17%in% b$out),]
+plot(dfb$solvencia17,dfb$endeudamiento17)
+
+dfc<-df[!(df$tesoreria17%in% e$out),]
+dfd<-dfc[!(dfc$liquides17%in% c$out),]
+plot(dfd$tesoreria17,dfd$liquides17)
+
+dfe<-df[!(df$tesoreria17%in% e$out),]
+dff<-dfe[!(dfe$endeudamiento17%in% b$out),]
+plot(dff$tesoreria17,dff$endeudamiento17)
+
+dfg<-df[!(df$solvencia17%in% a$out),]
+dfh<-dfg[!(dfg$fondo_ma17%in% d$out),]
+plot(dfh$solvencia17,dfh$fondo_ma17)
+
+plot(df$solvencia17,df$Nivel)
+plot(df$emp,df$Nivel)
+
+``` 
+Ademas de calcular el coeficiente de correlación por el método de Pearson, se calculo también usando el método de Spearman
+
+``` {r message= FALSE, warning=FALSE}
+require(corrplot)
+corrplot.mixed(corr = cor(data[,c("anio","EMPLEADOS","tesoreria17","liquides17","solvencia17","endeudamiento17","fondo_ma17")],method = "spearman"))
+``` 
+
+
+A partir de las gráficas se puede ver que entre también las variables de endeudamiento y solvencia están relacionadas, para las primeras pruebas con los modelos se dejara de estas dos,  solo la de endeudamiento.
+
+
+``` {r message= FALSE, warning=FALSE}
+data<-datemp
+#---
+data<-data[!is.na(data$liquides19),]
+data<-data[!is.na(data$liquides20),]
+
+data<-data[is.finite(data$liquides18),]
+data<-data[is.finite(data$liquides19),]
+data<-data[is.finite(data$liquides20),]
+#---
+data<-data[!is.na(data$solvencia20),]
+
+data<-data[is.finite(data$solvencia20),]
+#---
+data<-data[!is.na(data$endeudamiento20),]
+
+data<-data[is.finite(data$endeudamiento20),]
+#---
+data<-data[!is.na(data$fondo_ma19),]
+data<-data[!is.na(data$fondo_ma20),]
+
+data<-data[is.finite(data$fondo_ma18),]
+data<-data[is.finite(data$fondo_ma19),]
+data<-data[is.finite(data$fondo_ma20),]
+
+``` 
+
+Con los predictores definidos y la base limpia, se da comienzo a los primeros ensayos de elaboración del modelo
+
+## Primera prueba, generación arbol aleatorio
+
+### tratamiento previo
+
+Aun es necesario tratar mas la base para que sea apta para que cumpla con los requisitos de los modelos
+
+``` {r message= FALSE, warning=FALSE}
+datos<-data%>%select(ID,anio,emp,DEPARTAMENTO,liquides17,endeudamiento17,fondo_ma17,Nivel,A1_3_1)
+#datos<-datos%>%select( DEPARTAMENTO,tesoreria17,liquides17,solvencia17,endeudamiento17,fondo_ma17,Nivel,A1_3_1)
+#datos<-datos%>%select(ID,anio,DEPARTAMENTO,liquides17,endeudamiento17,fondo_ma17,Nivel,A1_3_1)
+datos$DEPARTAMENTO<-as.factor(datos$DEPARTAMENTO)
+datos$A1_3_1<-as.factor(datos$A1_3_1)
+names(datos)[9]<-"eac1"
+
+head(datos, 3)
+skim(datos)
+```
+
+Se retiran los valores outliers 
+
+``` {r message= FALSE, warning=FALSE}
+par(mar=c(1,1,1,1))
+b1<-boxplot(datos$liquides17)
+datos<-datos[!(datos$liquides17 %in% b1$out),]
+
+b4<-boxplot(datos$endeudamiento17)
+datos<-datos[!(datos$endeudamiento17 %in% b4$out),]
+b5<-boxplot(datos$fondo_ma17)
+datos<-datos[!(datos$fondo_ma17 %in% b5$out),]
+```
+
+se normalizan las variables numéricas
+
+``` {r message= FALSE, warning=FALSE}
+datos$liquides17<-as.numeric(scale(datos$liquides17))
+datos$endeudamiento17<-as.numeric(scale(datos$endeudamiento17))
+datos$fondo_ma17<-as.numeric(scale(datos$fondo_ma17))
+
+dat<-datos
+``` 
+
+Uno de los problemas mas relevantes dentro de el ejercicio es que los datos presentan un fuerte desbalance en la variable de etiqueta (el valor 1 corresponde a las EAC, las cuales son el objetivo de la clasificación)
+
+``` {r message= FALSE, warning=FALSE}
+table(datos$eac1)
+``` 
+Por lo que, para solucionarlo se aplica el método de SMOTE (en este caso particular se usa SEMOTE_NC el cual puede trabajar sobre variables categóricas al usar la distancia de Gower), que genera variables sintéticas de la categoría mas pequeña al tomar elementos que se encuentren entre un punto de la categoría y alguno de sus vecinos cercanos (calculados con KNN).
+Tambien se genera una base con los datos sin balancear (datos2) para realizar los mismos ejercicios y poder realizar un contraste con los datos generados
+
+``` {r message= FALSE, warning=FALSE}
+######################################################################
+# tratamiento de datos desbalanceados usando smote_nc
+
+datos<-data.frame(datos)
+datos2<-datos
+datos<-datos%>%select(-ID)
+
+library("RSBID")
+table(datos$eac1)
+datos<-SMOTE_NC(datos, "eac1", perc_maj = 70, k = 5)
+table(datos$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+###################################################################
+``` 
+
+Después de aplicar el SMOTE la variable minoritaria pasa de 428 a 4944, para los primeros entrenamientos se usara esta base pero también es posible realizar un submuestreo en la variable mayoritaria para nivelar aun mas las proporciones.
+
+``` {r message= FALSE, warning=FALSE}
+# temp1 <- one_hot(as.data.table(datos%>%select(-eac1)))
+# datos<-cbind(temp1,datos$eac1)
+# names(datos)[ncol(datos)]<-"eac1"
+# datos<-data.frame(datos)
+``` 
+
+
+``` {r message= FALSE, warning=FALSE}
+datos2<-datos2%>%select(-ID)
+# temp2 <- one_hot(as.data.table(datos2%>%select(-eac1)))
+# datos2<-cbind(temp2,datos2$eac1)
+# names(datos2)[ncol(datos2)]<-"eac1"
+# datos2<-data.frame(datos2)
+``` 
+
+
+### Arbol con los datos sin balancear 
+
+Para medir el grado en que mejora el modelo al balancear los datos, primero se generara un árbol con los datos originales.
+
+``` {r message= FALSE, warning=FALSE}
+# División de los datos en train y test
+# ==============================================================================
+set.seed(123)
+train2 <- sample(1:nrow(datos2), floor(nrow(datos2)*0.7), replace = FALSE)
+datos_train0 <- datos2[train2,]
+datos_test0  <- datos2[-train2,]
+rm(train2)
+# Entrenamiento del modelo
+# ==============================================================================
+set.seed(123)
+arbol_clasificacion2 <- tree(
+  formula = eac1~ .,
+  data    = datos_train0,
+  minsize = 10
+)
+summary(arbol_clasificacion2)
+
+
+# Estructura del árbol creado
+# ==============================================================================
+par(mar = c(1,1,1,1))
+plot(x = arbol_clasificacion2, type = "proportional")
+text(x = arbol_clasificacion2, splits = TRUE, pretty = 0, cex = 0.7, col = "firebrick")
+
+#-----------------------------------------------------------------------------   Predicción y evaluación del modelo
+
+# Error de test del modelo
+# ==============================================================================
+predicciones2 <- predict(
+  arbol_clasificacion2,
+  newdata = datos_test0,
+  type    = "class"
+)
+
+t2<-table(predicciones2, datos_test0$eac1)
+t2
+
+F1_Score(predicciones2, datos_test0$eac1)
+
+# Calculo de la especificidad
+
+t2[4]/(t2[3]+t2[4])
+
+``` 
+
+Para este ejercicio la mejor medida de calidad del modelo es el de la especificidad, porque mide solo el nivel de aciertos de la categoría que de interés, esto ya que, por ejemplo el f-score puede dar una medida erróneamente elevada dado que al ser mayoría la categoría de empresas que no son EAC, el modelo tiende a clasificarlas muy bien y de clasificar mal la de EAC, lo que aun dando un alto score no refleja la eficiencia real del modelo para predecir EAC.
+
+
+### Arbol con los datos balanceados
+
+Al repetir el entrenamiento del árbol con la base balanceada usando la misma configuración se obtuvo una especificidad del 0.8062 , donde el principal discriminante fue el de pertenecer a algunas secciones económicas (entre las cuales es pertenecer a la clase G o C )luego el de ser una empresa con una cantidad baja de empleados (con un máximo 15 empleados),y edad favoreciendo a las empresas jóvenes, criterios que van a acorde a lo esperado según la bibliográfica.
+
+
+``` {r message= FALSE, warning=FALSE}
+# División de los datos en train y test
+# ==============================================================================
+set.seed(123)
+train <- sample(1:nrow(datos),floor(nrow(datos)*0.7), replace = FALSE)
+datos_train <- datos[train,]
+datos_test  <- datos[-train,]
+rm(train)
+# Entrenamiento del modelo
+# ==============================================================================
+set.seed(123)
+arbol_clasificacion <- tree(
+  formula = eac1~ .,
+  data    = datos_train,
+  minsize = 10
+)
+summary(arbol_clasificacion)
+
+
+# Estructura del árbol creado
+# ==============================================================================
+par(mar = c(1,1,1,1))
+plot(x = arbol_clasificacion, type = "proportional")
+text(x = arbol_clasificacion, splits = TRUE, pretty = 0, cex = 0.7, col = "firebrick")
+
+#-----------------------------------------------------------------------------   Predicción y evaluación del modelo
+
+# Error de test del modelo
+# ==============================================================================
+predicciones <- predict(
+  arbol_clasificacion,
+  newdata = datos_test,
+  type    = "class"
+)
+t1<-table(predicciones, datos_test$eac1)
+t1
+
+F1_Score(predicciones, datos_test$eac1)
+
+# Calculo de la especificidad
+
+t1[4]/(t1[3]+t1[4])
+
+``` 
+
+Al comparar es claro como existe una mejora muy significativa entre ambos modelos, con los datos balanceados del logra una mayor cantidad de nodos y la especificidad pasa de 0 a 0.8062.
+
+### Pruning con los datos sin balancear 
+
+Se realizaron intentos de podar ambos árboles, pero ya se había alcanzado el nivel mínimo de ramas posibles 
+
+``` {r message= FALSE, warning=FALSE}
+#   # El árbol se crece al máximo posible para luego aplicar el pruning
+#   arbol_clasificacion2 <- tree(
+#     formula = eac1 ~ .,
+#     data    = datos_train0,
+#     mincut  = 1,
+#     minsize = 2,
+#     mindev  = 0
+#   )
+#   
+#   # Búsqueda por validación cruzada
+#   set.seed(123)
+#   cv_arbol2 <- cv.tree(arbol_clasificacion2, FUN = prune.misclass, K = 5)
+# #  
+# #  
+#   # Tamaño óptimo encontrado
+#   # ==============================================================================
+#   size_optimo2 <- rev(cv_arbol2$size)[which.min(rev(cv_arbol2$dev))]
+#   size_optimo2
+#   
+#   
+#   resultados_cv2 <- data.frame(n_nodos = cv_arbol2$size, clas_error = cv_arbol2$dev,
+# #                              alpha = cv_arbol2$k)
+#   
+#   p12 <- ggplot(data = resultados_cv2, aes(x = n_nodos, y = clas_error)) +
+#     geom_line() + 
+#     geom_point() +
+#     geom_vline(xintercept = size_optimo2, color = "red") +
+#     labs(title = " Error de clasificación vs \n tamaño del árbol") +
+#     theme_bw() 
+#   
+#   p22 <- ggplot(data = resultados_cv2, aes(x = alpha, y = clas_error)) +
+#     geom_line() + 
+#     geom_point() +
+#     labs(title = " Error de clasificación vs \n penalización alpha") +
+#     theme_bw() 
+#   
+#   ggarrange(p12, p22)
+#   
+#   
+#   arbol_final2 <- prune.misclass(
+#     tree = arbol_clasificacion2,
+#     best = size_optimo2
+#   )
+#   
+#   
+#   # Error de test del modelo final
+#   #-------------------------------------------------------------------------------
+#   predicciones2 <- predict(arbol_clasificacion2, newdata = datos_test2, type = "class")
+#   tt<-table(predicciones2, datos_test2$eac1)
+#   tt
+#   
+#   F1_Score(predicciones2, datos_test2$eac1)
+#  # 
+#   ttp[4]/(ttp[3]+ttp[4])
+
+``` 
+
+### Pruning con los datos balanceados
+
+``` {r message= FALSE, warning=FALSE}
+ 
+ # # # El árbol se crece al máximo posible para luego aplicar el pruning
+ #  arbol_clasificacion <- tree(
+ #    formula = eac1 ~ .,
+ #    data    = datos_train,
+ #    mincut  = 1,
+ #    minsize = 2,
+ #    mindev  = 0
+ #  )
+ # # 
+ #  # Búsqueda por validación cruzada
+ #  set.seed(123)
+ #  cv_arbol <- cv.tree(arbol_clasificacion, FUN = prune.misclass, K = 5)
+ # # 
+ # # 
+ # # # Tamaño óptimo encontrado
+ # # # ==============================================================================
+ #  size_optimo <- rev(cv_arbol$size)[which.min(rev(cv_arbol$dev))]
+ #  size_optimo
+ # # 
+ # # 
+ #  resultados_cv <- data.frame(n_nodos = cv_arbol$size, clas_error = cv_arbol$dev,
+ #                              alpha = cv_arbol$k)
+ # # 
+ #  p1 <- ggplot(data = resultados_cv, aes(x = n_nodos, y = clas_error)) +
+ #    geom_line() + 
+ #    geom_point() +
+ #    geom_vline(xintercept = size_optimo, color = "red") +
+ #    labs(title = " Error de clasificación vs \n tamaño del árbol") +
+ #    theme_bw() 
+ # # 
+ #  p2 <- ggplot(data = resultados_cv, aes(x = alpha, y = clas_error)) +
+ #    geom_line() + 
+ #    geom_point() +
+ #    labs(title = " Error de clasificación vs \n penalización alpha") +
+ #    theme_bw() 
+ # # 
+ #  ggarrange(p1, p2)
+ # # 
+ # # 
+ #  arbol_final <- prune.misclass(
+ #    tree = arbol_clasificacion,
+ #    best = size_optimo
+ #  )
+ # # 
+ # # 
+ # # # Error de test del modelo final
+ # # #-------------------------------------------------------------------------------
+ #  predicciones <- predict(arbol_clasificacion, newdata = datos_test, type = "class")
+ #  tt1<-table(predicciones, datos_test$eac1)
+ #  tt1
+ # # 
+ #  F1_Score(predicciones, datos_test$eac1)
+ # # 
+ #  ttp2[4]/(ttp2[3]+ttp2[4])
+```
+
+
+### Ramdom forest con la base nivelada
+
+Al ver que esta base contiene buena información para generar modelos de clasificación, se utilizo para realizar un modelo de random forest para obtener un mejor modelo del que se puede lograr con un unico arbol de decisión, para esto se seleccionaron los hiperparametros del numero de arboles incluidos en el modelo (num.trees) , profundidad máxima que pueden alcanzar los arboles (max.depth) y numero de predictores considerados en cada división (mtry) a partir de una búsqueda por grilla, obteniendo una especificidad de 0.8917 logrando así un mejor score que el que se lograba alcanzar con un solo árbol.
+``` {r message= FALSE, warning=FALSE}
+
+#------------------------------------ Ajuste del modelo y optimización de hiperparámetros
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+# En este caso no hay preprocesado, por lo que el transformer solo contiene
+# la definición de la fórmula y los datos de entrenamiento.
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit3 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones3 <- modelo_final_fit3 %>%
+  predict(new_data = datos_test)
+
+predicciones3 <- predicciones3 %>% 
+  bind_cols(datos_test %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones3,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones3 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat3<-mat_confusion
+mat3
+
+mc<-mat3$table
+
+mc[4]/(mc[3]+mc[4])
+
+# pred <- prediction(as.numeric(predicciones$eac1),as.numeric(predicciones$.pred_class))
+# perf <- performance(pred,"tpr","fpr")
+# plot(perf,colorize=TRUE)
+
+
+```
+
+Se puede ver un significativo aumento en la calidad del modelo respecto a un único árbol.
+
+###  Predicción del modelo anterior sobre toda la base  
+
+Se realizara una predicción sobre la base completa para tener una referencia de la capacidad del modelo anterior, en todos los arboles se mantendrá la misma estructura, en especial las opciones en la búsqueda por grilla para que se tenga un mismo sistema de referencia.
+
+``` {r message= FALSE, warning=FALSE}
+predicciones4 <- modelo_final_fit3 %>%
+  predict(new_data = datos2)
+
+predicciones4 <- predicciones4 %>% 
+  bind_cols(datos2 %>% dplyr::select(eac1))
+
+accuracy_test2  <- accuracy(
+  data     = predicciones4,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test2
+
+mat_confusion <- predicciones4 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+
+mat4<-mat_confusion
+mat4
+
+mc2<-mat4$table
+
+mc2[4]/(mc2[3]+mc2[4])
+
+``` 
+
+Se consiguió un score superior al 80%, a continuacion se agregaran mas variables para ver si es posible mejorar este valor.
+Primero realiza una prueba con la variable cuantía de la base "coes"
+
+### Contratos con el estado (Cuantia)
+
+Un indicador del buen estado de una empresa es si tiene relaciones con el estado, ya que esto le da una imagen de solides y seriedad que puede favorecerla para llegar a ser una EAC. 
+La primer variable de estudio va a ser el valor total de contrataciones con el estado,para esto se discretiza la variable a partir de sus deciles para reducir la carga en el entrenamiento.
+
+``` {r message= FALSE, warning=FALSE}
+coes1<-coes[coes$Año==2017,]
+coes1<-coes1%>%select(-Año)
+print("Valores nulos en coes")
+colSums(is.na(coes1))
+print("registros comunes entre la base y coes")
+length(which(coes1$ID %in% dat$ID))
+
+coes1<-coes1[which(coes1$ID %in% dat$ID),]
+
+range(coes1$Cuantia)
+q1a<-as.numeric(quantile(coes1$Cuantia, probs = seq(0, 1, .1),na.rm = T))
+barplot(q1a)
+
+q1b<-NULL
+for(i in 2:length(q1a)){
+  q1b[i-1]<-length(which( q1a[i-1]<coes1$Cuantia & coes1$Cuantia<=q1a[i] ))
+}
+
+barplot(q1b)
+
+q1c<-data.frame()
+for(i in 1:nrow(coes1)){
+  q1c[i,1]<-coes1$ID[i]
+  ifelse(q1a[1]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[2],q1c[i,2]<-1,
+  ifelse(q1a[2]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[3],q1c[i,2]<-2,
+  ifelse(q1a[3]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[4],q1c[i,2]<-3,
+  ifelse(q1a[4]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[5],q1c[i,2]<-4, 
+  ifelse(q1a[5]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[6],q1c[i,2]<-5, 
+  ifelse(q1a[6]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[7],q1c[i,2]<-6, 
+  ifelse(q1a[7]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[8],q1c[i,2]<-7, 
+  ifelse(q1a[8]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[9],q1c[i,2]<-8, 
+  ifelse(q1a[9]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[10],q1c[i,2]<-9,
+  ifelse(q1a[10]<coes1$Cuantia[i] & coes1$Cuantia[i] <=q1a[11],q1c[i,2]<-10,0 
+         ))))))))))
+}
+
+names(q1c)<-c("ID","cuantia")
+
+dat01<-left_join(dat,q1c,by="ID")
+
+dat01$cuantia[is.na(dat01$cuantia)]<-0
+dat01$cuantia<-as.factor(dat01$cuantia)
+
+```
+
+Se nivela la base y se entrena el modelo
+
+``` {r message= FALSE, warning=FALSE}
+
+dat01<-data.frame(dat01)
+dat01<-dat01%>%select(-ID)
+
+library("RSBID")
+table(dat01$eac1)
+dat01<-SMOTE_NC(dat01, "eac1", perc_maj = 70, k = 5)
+table(dat01$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train01       <- sample(1:nrow(dat01), size = nrow(dat01)/2)
+ datos_train01 <- dat01[train01,]
+ datos_test01  <- dat01[-train01,]
+ rm(train01)
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train01
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train01,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train01)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit5 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train01
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones5 <- modelo_final_fit5 %>%
+  predict(new_data = datos_test01)
+
+predicciones5 <- predicciones5 %>% 
+  bind_cols(datos_test01 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones5,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones5 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat5<-mat_confusion
+mat5
+
+m1<-mat5$table
+
+m1[4]/(m1[3]+m1[4])
+
+
+
+``` 
+
+### Contratos
+
+Esta variable cuenta la cantidad de contratos que se tienen con el estado, se decidió analizarlas por separado ya que puede influir el hecho de que exista un solo contrato por una alta cuantía o varios contratos con cuantías pequeñas. La asignacion de valores se realizo de la misma manera que en el caso anterior dejando como valor 0 para las empresas que no tienen relaciones con el estado y se discretizo creando categorías a partir de sus quintiles.
+
+``` {r message= FALSE, warning=FALSE}
+
+cor(coes1$Cuantia,coes1$Contratos)
+
+range(coes1$Contratos)
+q2a<-as.numeric(quantile(coes1$Contratos, probs = seq(0, 1, .2),na.rm = T))
+barplot(q2a)
+
+ q2b<-NULL
+ for(i in 2:length(q2a)){
+   q2b[i-1]<-length(which( q2a[i-1]<coes1$Contratos & coes1$Contratos<=q2a[i] ))
+ }
+ 
+ barplot(q2b)
+ 
+ q2c<-data.frame()
+ for(i in 1:nrow(coes1)){
+   q2c[i,1]<-coes1$ID[i]
+   ifelse(q2a[1]<coes1$Contratos[i] & coes1$Contratos[i] <=q2a[2],q2c[i,2]<-1,
+   ifelse(q2a[2]<coes1$Contratos[i] & coes1$Contratos[i] <=q2a[3],q2c[i,2]<-2,
+   ifelse(q2a[3]<coes1$Contratos[i] & coes1$Contratos[i] <=q2a[4],q2c[i,2]<-3,
+   ifelse(q2a[4]<coes1$Contratos[i] & coes1$Contratos[i] <=q2a[5],q2c[i,2]<-4, 
+   ifelse(q2a[5]<coes1$Contratos[i] & coes1$Contratos[i] <=q2a[6],q2c[i,2]<-5,0 
+          )))))
+ }
+ 
+ names(q2c)<-c("ID","Contratos")
+ 
+ dat02<-left_join(dat,q2c,by="ID")
+
+q2c<-q2c%>%select(ID,Contratos)
+dat02<-left_join(dat,q2c,by="ID")
+
+dat02$Contratos[is.na(dat02$Contratos)]<-0
+dat02$Contratos<-as.factor(dat02$Contratos)
+
+```
+
+
+``` {r message= FALSE, warning=FALSE}
+
+dat02<-data.frame(dat02)
+dat02<-dat02%>%select(-ID)
+
+library("RSBID")
+table(dat02$eac1)
+dat02<-SMOTE_NC(dat02, "eac1", perc_maj = 70, k = 5)
+table(dat02$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train02       <- sample(1:nrow(dat02), size = nrow(dat02)/2)
+ datos_train02 <- dat02[train02,]
+ datos_test02  <- dat02[-train02,]
+ rm(train02)
+
+
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train02
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train02,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train02)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit6 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train02
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones6 <- modelo_final_fit6 %>%
+  predict(new_data = datos_test02)
+
+predicciones6 <- predicciones6 %>% 
+  bind_cols(datos_test02 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones6,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones6 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat6<-mat_confusion
+mat6
+
+m2<-mat6$table
+
+m2[4]/(m2[3]+m2[4])
+
+```
+
+### Incidentes judiciales
+
+De la misma manera en que los contratos con el estado pueden generar una buena imagen empresarial, los incidentes judiciales generan una mala imagen y reflejan posibles malos manejos o problemas que a futuro podrían obstaculizar el ascenso de la empresa a ser una EAC. En la base se encontraron que 201 empresas registraron algún tipo de incidencia, para ese caso dado que la cantidad de posibles incidentes judiciales es muy baja, se decidió solo transformar la variable a tipo factor (categórica) sin realizar ningún tipo de
+discretizacion adicional.
+
+``` {r message= FALSE, warning=FALSE}
+
+names(raju)[2]<-"anio"
+raju1<-raju[raju$anio==2017,]
+raju1<-raju1%>%select(ID,NUMINCIDENTES)
+range(raju1$NUMINCIDENTES)
+table(raju1$NUMINCIDENTES)
+
+dat03<-left_join(dat,raju1,by="ID")
+
+dat03$NUMINCIDENTES[is.na(dat03$NUMINCIDENTES)]<-0
+dat03$NUMINCIDENTES<-as.factor(dat03$NUMINCIDENTES)
+
+```
+
+
+``` {r message= FALSE, warning=FALSE}
+
+dat03<-data.frame(dat03)
+dat03<-dat03%>%select(-ID)
+
+library("RSBID")
+table(dat03$eac1)
+dat03<-SMOTE_NC(dat03, "eac1", perc_maj = 70, k = 5)
+table(dat03$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train03       <- sample(1:nrow(dat03), size = nrow(dat03)/2)
+ datos_train03 <- dat03[train03,]
+ datos_test03  <- dat03[-train03,]
+ rm(train03)
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train03
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train03,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train03)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit7 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train03
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones7 <- modelo_final_fit7 %>%
+  predict(new_data = datos_test03)
+
+predicciones7 <- predicciones7 %>% 
+  bind_cols(datos_test03 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones7,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones7 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat7<-mat_confusion
+mat7
+
+m3<-mat7$table
+
+m3[4]/(m3[3]+m3[4])
+
+```
+
+### Modificacion de estatutos
+
+Esta variable puede reflejar las consecuencias, buenas o malas, causadas por los cambios en la estructura de la empresa, esta base solo cuantifica la cantidad de modificaciones realizadas por año,
+
+``` {r message= FALSE, warning=FALSE}
+
+names(moes)[2]<-"anio"
+moes1<-moes[moes$anio==2017,]
+moes1<-moes1%>%select(ID,PUBLICACIONES)
+range(moes1$PUBLICACIONES)
+table(moes1$PUBLICACIONES)
+
+dat04<-left_join(dat,moes1,by="ID")
+
+dat04$PUBLICACIONES[is.na(dat04$PUBLICACIONES)]<-0
+dat04$PUBLICACIONES<-as.factor(dat04$PUBLICACIONES)
+
+```
+
+``` {r message= FALSE, warning=FALSE}
+
+dat04<-data.frame(dat04)
+dat04<-dat04%>%select(-ID)
+
+library("RSBID")
+table(dat04$eac1)
+dat04<-SMOTE_NC(dat04, "eac1", perc_maj = 70, k = 5)
+table(dat04$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train04       <- sample(1:nrow(dat04), size = nrow(dat04)/2)
+ datos_train04 <- dat04[train04,]
+ datos_test04  <- dat04[-train04,]
+ rm(train04)
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train04
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train04,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train04)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit8 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train04
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones8 <- modelo_final_fit8 %>%
+  predict(new_data = datos_test04)
+
+predicciones8 <- predicciones8 %>% 
+  bind_cols(datos_test04 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones8,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones8 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat8<-mat_confusion
+mat8
+
+m4<-mat8$table
+
+m4[4]/(m4[3]+m4[4])
+
+```
+
+
+## Random forest con las nuevas variables
+
+Se realiza una prueba con todas las nuevas variables para identificar si actuando en conjunto se logra una mejor calidad en el modelo.
+
+``` {r message= FALSE, warning=FALSE}
+#   rm(dat05)
+dat05<-left_join(dat,q1c,by="ID")       # cuantia
+dat05<-left_join(dat05,q2c,by="ID")     # contratos
+dat05<-left_join(dat05,raju1,by="ID")   # Judicial
+dat05<-left_join(dat05,moes1,by="ID")   # modificacion estatutos
+names(dat05)
+
+dat05$PUBLICACIONES[is.na(dat05$PUBLICACIONES)]<-0
+dat05$PUBLICACIONES<-as.factor(dat05$PUBLICACIONES)
+dat05$cuantia[is.na(dat05$cuantia)]<-0
+dat05$cuantia<-as.factor(dat05$cuantia)
+dat05$Contratos[is.na(dat05$Contratos)]<-0
+dat05$Contratos<-as.factor(dat05$Contratos)
+dat05$NUMINCIDENTES[is.na(dat05$NUMINCIDENTES)]<-0
+dat05$NUMINCIDENTES<-as.factor(dat05$NUMINCIDENTES)
+
+dat05<-data.frame(dat05)
+
+dat05<-dat05%>%select(ID,anio,DEPARTAMENTO,liquides17,endeudamiento17,fondo_ma17,Nivel,cuantia,
+                      Contratos,NUMINCIDENTES,PUBLICACIONES,eac1)
+
+dat06<-dat05
+dat07<-dat05
+
+dat05<-dat05%>%select(-ID)
+
+library("RSBID")
+table(dat05$eac1)
+dat05<-SMOTE_NC(dat05, "eac1", perc_maj = 70, k = 5)
+table(dat05$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train05       <- sample(1:nrow(dat05), size = nrow(dat05)/2)
+ datos_train05 <- dat05[train05,]
+ datos_test05  <- dat05[-train05,]
+ rm(train05)
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train05
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train05,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train05)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit9 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar
+) %>%
+  fit(
+    data = datos_train05
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones9 <- modelo_final_fit9 %>%
+  predict(new_data = datos_test05)
+
+predicciones9 <- predicciones9 %>% 
+  bind_cols(datos_test05 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones9,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones9 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat9<-mat_confusion
+mat9
+
+all<-mat9$table
+
+all[4]/(all[3]+all[4])
+
+```
+
+
+## Predicción sobre toda la base
+
+Se evalúa el modelo anterior utilizando como entrada toda la base y no solo los datos de entrenamiento.
+
+``` {r message= FALSE, warning=FALSE}
+predicciones11 <- modelo_final_fit9 %>%
+  predict(new_data = dat07)
+
+predicciones11 <- predicciones11 %>% 
+  bind_cols(dat07 %>% dplyr::select(eac1))
+
+accuracy_test10  <- accuracy(
+  data     = predicciones11,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test2
+
+mat_confusion <- predicciones11 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+
+mat11<-mat_confusion
+mat11
+
+mf<-mat11$table
+
+mf[4]/(mf[3]+mf[4])
+
+``` 
+
+## Ensayo desagregando el CIIU
+
+Se usara la variable de clasificación industrial a dos niveles, es decir las sección mas el primer numero correspondiente a la división, para ver si se logra una mejora el nivel de predicción, no se genera una desagregacion mas precisa ya que el sistema no soporta una alta cantidad de categorías en una misma variable y un alto nivel de especificidad podría hacer que se pierdan relaciones generales.
+
+
+``` {r message= FALSE, warning=FALSE}
+
+nciiu<-data%>%select(ID,CIIU)
+nciiu$CIIU<-substring(nciiu$CIIU, 1, 2)
+dat06<-left_join(dat06,nciiu,by="ID")
+dat06<-dat06%>%select(-ID,-Nivel)
+dat06$CIIU<-as.factor(dat06$CIIU)
+
+
+library("RSBID")
+table(dat06$eac1)
+dat06<-SMOTE_NC(dat06, "eac1", perc_maj = 70, k = 5)
+table(dat06$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+
+# División de los datos en train y test
+# ==============================================================================
+ set.seed(123)
+ train06       <- sample(1:nrow(dat06), size = nrow(dat06)/2)
+ datos_train06 <- dat06[train06,]
+ datos_test06  <- dat06[-train06,]
+ rm(train06)
+
+
+# DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+# ==============================================================================
+modelo <- rand_forest(
+  mode  = "classification",
+  mtry  = tune(),
+  trees = tune()
+) %>%
+  set_engine(
+    engine     = "ranger",
+    max.depth  = tune(),
+    importance = "impurity",
+    seed       = 123
+  )
+
+# DEFINICIÓN DEL PREPROCESADO
+# ==============================================================================
+# En este caso no hay preprocesado, por lo que el transformer solo contiene
+# la definición de la fórmula y los datos de entrenamiento.
+transformer <- recipe(
+  formula = eac1 ~ .,
+  data    =  datos_train06
+)
+
+# DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+# ==============================================================================
+set.seed(1234)
+cv_folds <- vfold_cv(
+  data    = datos_train06,
+  v       = 5,
+  strata  = eac1
+)
+
+# WORKFLOW
+# ==============================================================================
+workflow_modelado <- workflow() %>%
+  add_recipe(transformer) %>%
+  add_model(modelo)
+
+
+# GRID DE HIPERPARÁMETROS
+# ==============================================================================
+hiperpar_grid <- expand_grid(
+  'trees'     = c(50, 100, 500, 1000, 5000),
+  'mtry'      = c(3, 5, 7, ncol(datos_train06)-1),
+  'max.depth' = c(1, 3, 10, 20)
+)
+
+# EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+# ==============================================================================
+cl <- makePSOCKcluster(parallel::detectCores() - 1)
+registerDoParallel(cl)
+
+grid_fit <- tune_grid(
+  object    = workflow_modelado,
+  resamples = cv_folds,
+  metrics   = metric_set(accuracy),
+  grid      = hiperpar_grid
+)
+
+stopCluster(cl)
+
+
+# Mejores hiperparámetros por validación cruzada
+# ==============================================================================
+show_best(grid_fit, metric = "accuracy", n = 1)
+
+
+# Predicción y evaluación del modelo
+
+
+# ENTRENAMIENTO FINAL
+# =============================================================================
+mejores_hiperpar01 <- select_best(grid_fit, metric = "accuracy")
+
+modelo_final_fit10 <- finalize_workflow(
+  x = workflow_modelado,
+  parameters = mejores_hiperpar01
+) %>%
+  fit(
+    data = datos_train06
+  ) %>%
+  pull_workflow_fit()
+
+# Error de test del modelo final
+# ==============================================================================
+predicciones10 <- modelo_final_fit10 %>%
+  predict(new_data = datos_test06)
+
+predicciones10 <- predicciones10 %>% 
+  bind_cols(datos_test06 %>% dplyr::select(eac1))
+
+accuracy_test  <- accuracy(
+  data     = predicciones10,
+  truth    = eac1,
+  estimate = .pred_class,
+  na_rm    = TRUE
+)
+accuracy_test
+
+mat_confusion <- predicciones10 %>%
+  conf_mat(
+    truth     = eac1,
+    estimate  = .pred_class
+  )
+mat10<-mat_confusion
+mat10
+
+allc<-mat10$table
+
+allc[4]/(allc[3]+allc[4])
+
+``` 
+
+En vista que no mejoro el score, se mantiene el modelo anterior y se probara el nivel de predicción con toda la base
+
+
+## Arbol de classificación con todos los datos
+
+Como fuente de contraste, se entrenara un árbol aleatorio con la base que produjo mejor score con random forest
+
+``` {r message= FALSE, warning=FALSE}
+
+
+# Entrenamiento del modelo
+# ==============================================================================
+set.seed(123)
+arbol_clasificacion <- tree(
+  formula = eac1~ .,
+  data    = datos_train06,
+  minsize = 10
+)
+summary(arbol_clasificacion)
+
+
+
+# Estructura del árbol creado
+# ==============================================================================
+par(mar = c(1,1,1,1))
+plot(x = arbol_clasificacion, type = "proportional")
+text(x = arbol_clasificacion, splits = TRUE, pretty = 0, cex = 0.7, col = "firebrick")
+
+#-----------------------------------------------------------------------------   Predicción y evaluación del modelo
+
+# Error de test del modelo
+# ==============================================================================
+predicciones12 <- predict(
+  arbol_clasificacion,
+  newdata = datos_test06,
+  type    = "class"
+)
+t_1<-table(predicciones12, datos_test06$eac1)
+t_1
+
+F1_Score(predicciones12, datos_test06$eac1)
+
+# Calculo de la especificidad
+
+t_1[4]/(t_1[3]+t_1[4])
+
+``` 
+
+## RF con los datos originale mas el CIIU a 2 niveles
+
+Se evalúa el modelo anterior utilizando como entrada toda la base y no solo los datos de entrenamiento.
+
+``` {r message= FALSE, warning=FALSE}
+
+
+dat08<-left_join(dat,nciiu,by="ID")
+dat08<-dat08%>%select(-ID,-Nivel)
+dat08$CIIU<-as.factor(dat08$CIIU)
+dat08<-data.frame(dat08)
+
+library("RSBID")
+table(dat08$eac1)
+dat08<-SMOTE_NC(dat08, "eac1", perc_maj = 70, k = 5)
+table(dat08$eac1)
+detach("package:RSBID", unload=TRUE)
+detach("package:klaR", unload=TRUE)
+detach("package:MASS", unload=TRUE)
+
+  
+  # División de los datos en train y test
+  # ==============================================================================
+   set.seed(123)
+   train09       <- sample(1:nrow(dat08), size = nrow(dat08)/2)
+   datos_train09 <- dat08[train09,]
+   datos_test09  <- dat08[-train09,]
+   rm(train09)
+  
+  
+  # DEFINICIÓN DEL MODELO Y DE LOS HIPERPARÁMETROS A OPTIMIZAR
+  # ==============================================================================
+  modelo <- rand_forest(
+    mode  = "classification",
+    mtry  = tune(),
+    trees = tune()
+  ) %>%
+    set_engine(
+      engine     = "ranger",
+      max.depth  = tune(),
+      importance = "impurity",
+      seed       = 123
+    )
+  
+  # DEFINICIÓN DEL PREPROCESADO
+  # ==============================================================================
+
+  transformer <- recipe(
+    formula = eac1 ~ .,
+    data    =  datos_train09
+  )
+  
+  # DEFINICIÓN DE LA ESTRATEGIA DE VALIDACIÓN Y CREACIÓN DE PARTICIONES
+  # ==============================================================================
+  set.seed(1234)
+  cv_folds <- vfold_cv(
+    data    = datos_train09,
+    v       = 5,
+    strata  = eac1
+  )
+  
+  # WORKFLOW
+  # ==============================================================================
+  workflow_modelado <- workflow() %>%
+    add_recipe(transformer) %>%
+    add_model(modelo)
+  
+  
+  # GRID DE HIPERPARÁMETROS
+  # ==============================================================================
+  hiperpar_grid <- expand_grid(
+    'trees'     = c(50, 100, 500, 1000, 5000),
+    'mtry'      = c(3, 5, 7, ncol(datos_train09)-1),
+    'max.depth' = c(1, 3, 10, 20)
+  )
+  
+  # EJECUCIÓN DE LA OPTIMIZACIÓN DE HIPERPARÁMETROS
+  # ==============================================================================
+  cl <- makePSOCKcluster(parallel::detectCores() - 1)
+  registerDoParallel(cl)
+  
+  grid_fit <- tune_grid(
+    object    = workflow_modelado,
+    resamples = cv_folds,
+    metrics   = metric_set(accuracy),
+    grid      = hiperpar_grid
+  )
+  
+  stopCluster(cl)
+  
+  
+  # Mejores hiperparámetros por validación cruzada
+  # ==============================================================================
+  show_best(grid_fit, metric = "accuracy", n = 1)
+  
+  
+  # Predicción y evaluación del modelo
+  
+  
+  # ENTRENAMIENTO FINAL
+  # =============================================================================
+  mejores_hiperpar09 <- select_best(grid_fit, metric = "accuracy")
+  
+  modelo_final_fit11 <- finalize_workflow(
+    x = workflow_modelado,
+    parameters = mejores_hiperpar09
+  ) %>%
+    fit(
+      data = datos_train09
+    ) %>%
+    pull_workflow_fit()
+  
+  # Error de test del modelo final
+  # ==============================================================================
+  predicciones11 <- modelo_final_fit11 %>%
+    predict(new_data = datos_test09)
+  
+  predicciones11 <- predicciones11 %>% 
+    bind_cols(datos_test09 %>% dplyr::select(eac1))
+  
+  accuracy_test  <- accuracy(
+    data     = predicciones11,
+    truth    = eac1,
+    estimate = .pred_class,
+    na_rm    = TRUE
+  )
+  accuracy_test
+  
+  mat_confusion <- predicciones11 %>%
+    conf_mat(
+      truth     = eac1,
+      estimate  = .pred_class
+    )
+  mat12<-mat_confusion
+  mat12
+  
+  best_ciiu<-mat12$table
+  
+  best_ciiu[4]/(best_ciiu[3]+best_ciiu[4])
+
+``` 
+
+## Pruebas con otros modelos
+
+### SVM
+
+Para comprobar si el modelo de random forest es el mas adecuado tal como lo dice la literatura, se utilizo la base inicial, la que mejor score a generado para entrenar un modelo de support vector machine (svm). Para esto primero se realizo 10 cross-validation para identificar el valor optimo de penalización.
+
+``` {r message= FALSE, warning=FALSE}
+
+svm_cv <- tune("svm", eac1 ~ ., data = datos_train, kernel = 'linear',
+               ranges = list(cost = c(0.0001, 0.0005, 0.001, 0.01, 0.1, 1)))
+
+ggplot(data = svm_cv$performances, aes(x = cost, y = error)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Error de clasificación vs hiperparámetro C") +
+  theme_bw()
+
+#
+
+svm_cv$best.parameters
+
+#
+
+modelo_svm <- svm_cv$best.model
+
+# Aciertos del modelo con los datos de entrenamiento
+paste("Error de entrenamiento:", 100*mean(datos_train$eac1 != modelo_svm$fitted), "%")
+
+#
+
+table(prediccion = modelo_svm$fitted, clase_real = datos_train$eac1)
+
+#
+
+predicciones <- predict(object = modelo_svm, newdata = datos_test)
+
+paste("Error de test:", 100 * mean(datos_test$eac1 != predicciones), "%")
+
+#
+
+svmT<-table(prediccion = predicciones, clase_real = datos_test$eac1)
+
+svmT[4]/(svmT[3]+svmT[4])
+
+```
+
+### Red neuronal
+
+Tambien se entreno una red neuronal seleccionando sus hiperparametros a partir de una búsqueda de hiperparametros por random grid search, el cual hace una búsqueda de combinaciones aleatorias en lugar de usar grid search cartesiano (todas las combinaciones posibles) por ser poco practico, ademas como algunas combinaciones aleatorias pueden ser muy poco favorables, se activo una parada temprana.
+
+``` {r message= FALSE, warning=FALSE}
+temp1n <- one_hot(as.data.table(datos_train%>%select(-eac1)))
+datos_train08<-cbind(temp1n,datos_train$eac1)
+names(datos_train08)[ncol(datos_train08)]<-"eac1"
+datos_train08<-data.frame(datos_train08)
+
+temp2n <- one_hot(as.data.table(datos_test%>%select(-eac1)))
+datos_test08<-cbind(temp2n,datos_test$eac1)
+names(datos_test08)[ncol(datos_test08)]<-"eac1"
+datos_test08<-data.frame(datos_test08)
+
+
+datos_train08$eac1 <- factor(datos_train08$eac1, levels = c("0", "1"), labels = c("No_eac1", "eac1"))
+datos_test08$eac1  <- factor(datos_test08$eac1, levels = c("0", "1"), labels = c("No_eac1", "eac1"))
+
+table(datos_train08$eac1)
+table(datos_test08$eac1)
+
+################################################################################################
+
+# Hiperparámetros que se quieren optimizar mediante búsqueda aleatoria.
+# Se definen los posibles valores de cada hiperparámetro, entre los que se
+# escoge aleatoriamente.
+
+hiperparametros_nn <- list(
+  activation = c("Rectifier", "Maxout", "Tanh", "RectifierWithDropout"), 
+  hidden = list(c(5), c(10), c(50), c(10, 10),c(50, 50, 50)),
+  l1 = c(0, 0.00001, 0.0001), 
+  l2 = c(0, 0.00001, 0.0001),
+  rate = c(0, 01, 0.005, 0.001),
+  rate_annealing = c(1e-8, 1e-7, 1e-6),
+  rho = c(0.9, 0.95, 0.99, 0.999),
+  epsilon = c(1e-10, 1e-8, 1e-6, 1e-4),
+  momentum_start = c(0, 0.5),
+  momentum_stable = c(0.99, 0.5, 0),
+  input_dropout_ratio = c(0, 0.1, 0.2),
+  max_w2 = c(10, 100, 1000, 3.4028235e+38)
+)
+
+# Al ser una búsqueda aleatoria, hay que indicar criterios de parada.
+search_criteria <- list(
+  strategy = "RandomDiscrete",      
+  max_runtime_secs   = 5*60, # Tiempo máximo de búsqueda (5 minutos)
+  max_models         = 100,  # Número máximo de modelos
+  stopping_tolerance = 0.01,
+  stopping_rounds    = 5,
+  seed               = 1234               
+)
+
+
+# Creación de un cluster local con todos los cores disponibles.
+h2o.init(
+  ip       = "localhost",
+  # -1 indica que se empleen todos los cores disponibles.
+  nthreads = -1,
+  # Máxima memoria disponible para el cluster.
+  max_mem_size = "8g"
+)
+
+
+
+datos_train_h2o   <- as.h2o(datos_train08)
+```
+
+``` {r, results='hide'}
+grid_dl_4 <- h2o.grid(
+  algorithm = "deeplearning",
+  epochs    = 100, 
+  x         = names(datos_train_h2o)[-97],
+  y         = "eac1",
+  training_frame = datos_train_h2o,
+  # validation_frame = datos_validation, # Validación simple
+  nfolds           = 3, # validación cruzada
+  standardize      = TRUE,
+  hyper_params     = hiperparametros_nn,
+  search_criteria  = search_criteria,
+  seed             = 123,
+  grid_id          = "grid_dl_4"
+)
+
+``` 
+
+``` {r message= FALSE, warning=FALSE}
+resultados_grid <- h2o.getGrid(
+  sort_by    = 'accuracy',
+  grid_id    = "grid_dl_4",
+  decreasing = TRUE
+)
+
+data.frame(resultados_grid@summary_table)
+
+
+modelo_finalnn <- h2o.getModel(resultados_grid@model_ids[[1]])
+
+prob_pred <- h2o.predict(modelo_finalnn, newdata = as.h2o(datos_test08))
+
+
+y_pred <- as.vector(ifelse(prob_pred$predict == 'No_eac1', 0, 1))
+y_test_set <- ifelse(datos_test08$eac1 == 'No_eac1', 0, 1)
+
+cm <- table(y_test_set, y_pred)
+cm
+
+cm[4]/(cm[3]+cm[4])
+
+pred1 <- prediction(as.numeric(y_pred), as.numeric(y_test_set))
+perf1 <- performance(pred1, "tpr", "fpr")
+plot(perf1)
+
+
+# h2o.shutdown()
+
+``` 
+Ambos métodos generan predicciones aceptables sobre el 70%, pero no superan a las generadas por el modelo de Ramdon forest
+
+## Importancia de predictores
+
+Al final de todos los ejercicios, el mejor modelo se consiguió con el random forest usando la base original. Para conocer mejor el peso de cada variable dentro de este modelo, se estudiaron los predictores que mas influencia tienen dentro del modelo, para esta evaluación se usaran 2 metodos diferentes
+
+### Pureza de nodos
+Este criterio se base en calcular el incremento total en la pureza de los nodos debido a las divisiones en las que participa el predictor que se esta evaluando, para esto en cada nodo se registra el descenso conseguido en la medida del Gini. Así para cada uno de los predictores se calcula el descenso medio conseguido en el conjunto de arboles, teniendo que cuanto mayor sea este valor, mayor la contribución de este predictor en el modelo. Por ejemplo, cuando se divide un nodo del árbol, el algoritmo busca un campo con la mejora mas elevada del total de impureza, calculada como el total de impureza entre todos los nodos hijo restados del total de impureza del nodo padre.
+
+``` {r message= FALSE, warning=FALSE}
+modeloi01 <- rand_forest(
+             mode  = "regression"
+          ) %>%
+          set_engine(
+            engine     = "ranger",
+            importance = "impurity",
+            seed       = 123
+          )
+
+datos_train062<-datos_train
+datos_train062$eac1<-as.numeric(datos_train062$eac1)
+
+modeloi01 <- modeloi01 %>% finalize_model(mejores_hiperpar01)
+modeloi01 <- modeloi01 %>% fit(eac1 ~., data = datos_train062)
+
+# Importancia
+importancia_predi01 <- modeloi01$fit$variable.importance %>%
+                    enframe(name = "predictor", value = "importancia")
+
+# Gráfico
+ggplot(
+  data = importancia_predi01,
+  aes(x    = reorder(predictor, importancia),
+      y    = importancia,
+      fill = importancia)
+) +
+labs(x = "predictor", title = "Importancia predictores (pureza de nodos)") +
+geom_col() +
+coord_flip() +
+theme_bw() +
+theme(legend.position = "none")
+``` 
+
+###  Permutación
+
+Este indicador consiste en crear un conjunto de arboles para luego permutar en todos ellos los valores del predictor que se esta estudiando manteniendo los demas predictores constantes, luego de cada permutacion se recalcula el incremento en el error debido a la permutacion del predictor teniendo que si el predictor estaba contribuyendo al modelo, al perder la información que proporcionaba esa variable es de esperarse que el modelo aumente su error en un porcentaje que se puede interpretarse como la influencia que tiene el predictor sobre el modelo.
+
+``` {r message= FALSE, warning=FALSE}
+# Entrenamiento modelo
+modeloi02 <- rand_forest(
+             mode  = "regression"
+          ) %>%
+          set_engine(
+            engine     = "ranger",
+            importance = "permutation",
+            seed       = 123
+          )
+
+modeloi02 <- modeloi02 %>% finalize_model(mejores_hiperpar01)
+modeloi02 <- modeloi02 %>% fit(eac1 ~., data = datos_train062)
+
+# Importancia
+importancia_predi02 <- modeloi02$fit$variable.importance %>%
+                    enframe(name = "predictor", value = "importancia")
+
+# Gráfico
+ggplot(
+  data = importancia_predi02,
+  aes(x    = reorder(predictor, importancia),
+      y    = importancia,
+      fill = importancia)
+) +
+labs(x = "predictor", title = "Importancia predictores (permutación)") +
+geom_col() +
+coord_flip() +
+theme_bw() +
+theme(legend.position = "none")
+
+``` 
+
+
+
+
+## Resumen total
+
+Al final los resultados de todos los modelos entrenados es el siguiente
+
+``` {r message= FALSE, warning=FALSE}
+
+tab11<-rbind("Arbol con datos sin balancear","Arbol con datos balanceados","Random forest con datos Balanceado","Prediccion sobre toda la base","Ensayo con la variable Cuantia","Ensayo con la variable Contrato","Ensayo con la variable Judiciales","Ensayo con la variable Modificacion de estatutos","Ensayo con todas las variables","Ensayo con todas las variables sobre toda la base","Todas las variablas mas el CIIU a 2 niveles","Arbol con CIUU a 2 niveles","Random forest balanceado mas CIUU a 2 niveles","Maquina de sopporte vectorial","Red neuronal")
+
+tab11<-cbind(tab11,c(round(t2[4]/(t2[3]+t2[4]),4),round(t1[4]/(t1[3]+t1[4]),4),round(mc[4]/(mc[3]+mc[4]),4),round(mc2[4]/(mc2[3]+mc2[4]),4),round(m1[4]/(m1[3]+m1[4]),4),round(m2[4]/(m2[3]+m2[4]),4),round(m3[4]/(m3[3]+m3[4]),4),round(m4[4]/(m4[3]+m4[4]),4),round(all[4]/(all[3]+all[4]),4),round(mf[4]/(mf[3]+mf[4]),4),round(allc[4]/(allc[3]+allc[4]),4),round(t_1[4]/(t_1[3]+t_1[4]),4),round(best_ciiu[4]/(best_ciiu[3]+best_ciiu[4]),4),round(svmT[4]/(svmT[3]+svmT[4]),4),round(cm[4]/(cm[3]+cm[4]),4)))
+
+tab11<-data.frame(tab11)
+names(tab11)<-c("Modelo","especificidad")
+kable(tab11,caption = "Fondo de maniobra")%>%kable_styling(full_width = F,position = "center")%>%
+column_spec(1,bold = T,background = "grey")%>%column_spec(2,bold = T,background = "lightgrey",color = "Black") 
+``` 
+
+## Concluciones
+
+#<div style="text-align: justify">
+
+A partir de los resultados obtenidos en el desarrollo de este trabajo, se puede ver que en primer lugar si es posible entrenar modelos de aprendizaje automatizado con la suficiente exactitud para ser viables en la predicción de EAC, además se comprobó que, dentro de los diferentes modelos evaluados, el modelo de random forest ofrece mejor exactitud para este tipo de ejercicios. También se pudo corroborar que los predictores más importantes son la edad de la empresa, favoreciendo a las empresas jóvenes, la cantidad de empleados, en donde se ve que las empresas de alto crecimiento están fuertemente ubicadas dentro de las pequeñas y medianas empresas. Por otro lado la variable endeudamiento no es una variable que se tenga en cuenta en estudios previos y que para este trabajo mostró ser relevante en la generación de los modelos lo cual abre nuevas posibilidades de enfoques en el estudio de EAC, también es curioso ver que, si bien la variable de ubicación por departamento influye en el entrenamiento del modelo, no lo hace con la fuerza esperada por lo que en ejercicios futuros seria interesante usar un nivel de desagregación mayor de la variable de ubicación  
+
+Para actividades futuras es posible repetir el ejercicio teniendo en cuenta las siguientes opciones:
+
+	* Ampliación de la cantidad de empresas usadas en el estudio, ya que las empresas vigiladas por la superintendencia de sociedades pueden presentar características particulares que no permitan una buena generalización del modelo para el análisis de cualquier empresa
+	* 	Volver a realizar las pruebas usando las diferentes marcas que se generaron a partir de las diferentes metodologías de clasificación de EAC.
+	* 	Aumentar  la especificidad del ejercicio al tratar de identificar empresas gacelas.
+	* 	Usar el modelo para generar predicciones sobre información proveniente de otro país para así evaluar el nivel de precisión del modelo con datos de otras economías
+	* 	Aplicar otros modelos de aprendizaje automatizado , como por ejemplo el uso de deep learning para aprovechar su alta capacidad de clasificación a partir de la generación de modelos con diferentes topologías.
+	* 	Agregar información más variada como puede ser geolocalización de las empresas a partir de sus coordenadas (obtenidos por registros administrativos, fuentes oficiales o web scraping de paginas con datos empresariales), información de cambios estructurales de la empresa como fusiones o cambios de razón social.
+	* 	Realizar estudios locales a nivel de regiones o departamentos para ver si al analizar empresas presentes en un mismo entorno se logra una mejor predicción local.
+	* 	Uso de información de registros administrativos diferentes(por ejemplo la información proveniente de los pagos a seguridad social, que en el caso de Colombia son almacenados en la Planilla Integrada de Liquidación de Aportes - PILA) que permitan una información con un nivel de actualización alto y contenga información de relaciones como por ejemplo entre la empresa y sus empleados, o las relaciones entre empresas donde posiblemente existan factores que influyan en el desarrollo de una empresa para convertirse en EAC (ver como influye en el desarrollo de una empresa tener relaciones con empresas de alto crecimiento).
+
+#<div/>
