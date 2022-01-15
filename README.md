@@ -19,6 +19,6 @@ Teniendo en cuenta que las economías entre países son muy variadas y diferente
 * TFM_V1_CLNP.pdf : Trabajo final de maestria
 * Bitacora_11_RAIE.rmd : proyecto MArkdown bajo el lenguaje R con los codigos necesarios para la realización del proyecto 
 * Bitacora_16.html : Markdown con la bitacora de la elaboracion del ejercicio y los resultados
-* Datos.rar : comprimido con las bases de datos utilizadas
+* Datasets TFM.rar : comprimido con las bases de datos utilizadas
 
 
